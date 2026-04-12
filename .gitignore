@@ -1,0 +1,13 @@
+data/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+*.sqlite3
+test_video.mp4
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/

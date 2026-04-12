@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频审核打码</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus"></script>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #232733;
+      --border: #2d3140; --text: #e4e6eb; --text2: #8b8fa3;
+      --primary: #6366f1; --primary-light: #818cf8; --primary-bg: rgba(99,102,241,0.12);
+      --danger: #ef4444; --danger-bg: rgba(239,68,68,0.1);
+      --success: #22c55e; --success-bg: rgba(34,197,94,0.1);
+      --warn: #f59e0b; --warn-bg: rgba(245,158,11,0.1);
+      --cyan: #06b6d4; --cyan-bg: rgba(6,182,212,0.1);
+      --radius: 12px; --radius-sm: 8px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+    .app-header .logo { width: 28px; height: 28px; background: linear-gradient(135deg, var(--primary), var(--cyan)); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; }
+    .app-header h1 { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+    .main { max-width: 1280px; margin: 0 auto; padding: 24px 32px; }
+    /* Upload area */
+    .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px; text-align: center; transition: all 0.3s; cursor: pointer; background: var(--surface); margin-bottom: 24px; }
+    .upload-zone:hover { border-color: var(--primary); background: var(--primary-bg); }
+    .upload-icon { font-size: 36px; color: var(--text2); margin-bottom: 8px; }
+    .upload-text { color: var(--text2); font-size: 14px; }
+    .upload-hint { color: var(--text2); font-size: 12px; opacity: 0.6; margin-top: 4px; }
+
+    /* Stats bar */
+    .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: transform 0.2s; }
+    .stat-item:hover { transform: translateY(-2px); }
+    .stat-num { font-size: 32px; font-weight: 700; line-height: 1.2; }
+    .stat-label { font-size: 12px; color: var(--text2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Task list */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .task-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .task-row { display: grid; grid-template-columns: 1fr 100px 160px 160px 80px; align-items: center; gap: 12px; padding: 14px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; }
+    .task-row:hover { border-color: var(--primary); background: var(--primary-bg); }
+    .task-row.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+    .task-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+    /* Status badge */
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+    .badge-done { background: var(--success-bg); color: var(--success); } .badge-done::before { background: var(--success); }
+    .badge-processing { background: var(--warn-bg); color: var(--warn); } .badge-processing::before { background: var(--warn); animation: pulse 1.5s infinite; }
+    .badge-pending { background: var(--primary-bg); color: var(--primary-light); } .badge-pending::before { background: var(--primary-light); }
+    .badge-failed { background: var(--danger-bg); color: var(--danger); } .badge-failed::before { background: var(--danger); }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* Progress bar */
+    .progress-wrap { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+    /* Buttons */
+    .btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: #fff; } .btn-primary:hover { background: var(--primary-light); }
+    .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); } .btn-ghost:hover { color: var(--danger); border-color: var(--danger); }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* Detail panel */
+    .detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .detail-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .detail-header h2 { font-size: 15px; font-weight: 600; }
+    .detail-body { padding: 24px; }
+
+    /* Detail stats */
+    .detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .ds-card { padding: 16px; border-radius: var(--radius-sm); text-align: center; }
+    .ds-card .ds-num { font-size: 28px; font-weight: 700; }
+    .ds-card .ds-label { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Highlight timeline */
+    .hl-section { margin-bottom: 24px; }
+    .hl-title { font-size: 14px; font-weight: 600; color: var(--cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .hl-title::before { content: ''; width: 3px; height: 16px; background: var(--cyan); border-radius: 2px; }
+    .hl-list { position: relative; padding-left: 20px; }
+    .hl-list::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+    .hl-item { position: relative; padding: 14px 16px; margin-bottom: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); transition: all 0.2s; }
+    .hl-item:hover { border-color: var(--cyan); background: var(--cyan-bg); }
+    .hl-item::before { content: ''; position: absolute; left: -17px; top: 20px; width: 10px; height: 10px; background: var(--cyan); border-radius: 50%; border: 2px solid var(--bg); z-index: 1; }
+    .hl-time { display: inline-flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; color: var(--cyan); font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+    .hl-time .arrow { font-size: 14px; color: var(--text2); }
+    .hl-desc { font-size: 13px; color: var(--text); margin-top: 6px; line-height: 1.6; }
+    .hl-reason { font-size: 12px; color: var(--text2); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+
+    /* Violations */
+    .vio-section { margin-bottom: 16px; }
+    .vio-title { font-size: 14px; font-weight: 600; color: var(--danger); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .vio-title::before { content: ''; width: 3px; height: 16px; background: var(--danger); border-radius: 2px; }
+    .vio-group { margin-bottom: 16px; }
+    .vio-group-label { font-size: 12px; font-weight: 600; color: var(--text2); padding: 6px 12px; background: var(--surface2); border-radius: 6px; margin-bottom: 8px; display: inline-block; }
+    .vio-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 4px; background: var(--surface2); border-radius: 6px; font-size: 13px; border-left: 3px solid transparent; }
+    .vio-item.mosaic { border-left-color: var(--danger); }
+    .vio-item.mark { border-left-color: var(--warn); }
+    .vio-time { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 50px; color: var(--text); }
+    .vio-type { flex: 1; }
+    .vio-tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .vio-tag.mosaic { background: var(--danger-bg); color: var(--danger); }
+    .vio-tag.mark { background: var(--warn-bg); color: var(--warn); }
+
+    .empty-state { text-align: center; padding: 40px; color: var(--text2); font-size: 13px; }
+
+    /* Override Element Plus for dark theme */
+    .el-upload-dragger { background: transparent !important; border: none !important; }
+    .el-message { --el-message-bg-color: var(--surface2) !important; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="app-header">
+      <div class="logo">V</div>
+      <h1>视频审核打码系统</h1>
+    </div>
+    <div class="main">
+      <!-- Upload -->
+      <div class="upload-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop">
+        <input ref="fileInput" type="file" accept="video/*" style="display:none" @change="onFileSelect">
+        <div class="upload-icon">&#8679;</div>
+        <div class="upload-text">拖拽视频到此处，或点击上传</div>
+        <div class="upload-hint">支持 MP4 / MOV / AVI / MKV，最大 500MB</div>
+        <div v-if="uploading" style="margin-top:12px">
+          <div class="progress-wrap" style="width:200px;margin:0 auto"><div class="progress-fill" :style="{width:uploadPct+'%',background:'var(--primary)'}"></div></div>
+          <div style="font-size:12px;color:var(--text2);margin-top:6px">上传中 {{ uploadPct }}%</div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-bar" v-if="tasks.length">
+        <div class="stat-item"><div class="stat-num" style="color:var(--primary-light)">{{ tasks.length }}</div><div class="stat-label">总任务</div></div>
+        <div class="stat-item"><div class="stat-num" style="color:var(--success)">{{ tasks.filter(t=>t.status==='done').length }}</div><div class="stat-label">已完成</div></div>
+        <div class="stat-item"><div class="stat-num" style="color:var(--warn)">{{ tasks.filter(t=>t.status==='processing').length }}</div><div class="stat-label">处理中</div></div>
+        <div class="stat-item"><div class="stat-num" style="color:var(--danger)">{{ tasks.filter(t=>t.status==='failed').length }}</div><div class="stat-label">失败</div></div>
+      </div>
+
+      <!-- Task List -->
+      <div class="section-header">
+        <div class="section-title">任务列表</div>
+        <button v-if="tasks.length" class="btn btn-ghost btn-sm" @click="clearDone">清除已完成</button>
+      </div>
+      <div class="task-list">
+        <div v-for="t in tasks" :key="t.id" class="task-row" :class="{active: detail?.id===t.id}" @click="selectTask(t)">
+          <div class="task-name">{{ t.filename }}</div>
+          <div><span class="badge" :class="'badge-'+t.status">{{ statusText(t.status) }}</span></div>
+          <div>
+            <div class="progress-wrap"><div class="progress-fill" :style="{width:Math.round(t.progress*100)+'%', background: t.status==='done'?'var(--success)':t.status==='failed'?'var(--danger)':'var(--primary)'}"></div></div>
+            <div style="font-size:11px;color:var(--text2);margin-top:3px">{{ Math.round(t.progress*100) }}%</div>
+          </div>
+          <div style="font-size:12px;color:var(--text2)">{{ formatTime(t.created_at) }}</div>
+          <div class="task-actions">
+            <button v-if="t.status==='done'" class="btn btn-primary btn-sm" @click.stop="download(t.id)">下载</button>
+            <button class="btn btn-ghost btn-sm" @click.stop="deleteTask(t.id)">删除</button>
+          </div>
+        </div>
+        <div v-if="!tasks.length" class="empty-state">暂无任务，上传视频开始审核</div>
+      </div>
+
+      <!-- Detail Panel -->
+      <div v-if="detail" class="detail-panel">
+        <div class="detail-header">
+          <h2>{{ detail.filename }}</h2>
+          <button class="btn btn-ghost btn-sm" @click="detail=null">关闭</button>
+        </div>
+        <div class="detail-body">
+          <!-- Stats -->
+          <div class="detail-stats">
+            <div class="ds-card" style="background:var(--danger-bg)"><div class="ds-num" style="color:var(--danger)">{{ dedupedViolations.length }}</div><div class="ds-label">违规总数</div></div>
+            <div class="ds-card" style="background:var(--warn-bg)"><div class="ds-num" style="color:var(--warn)">{{ dedupedViolations.filter(v=>v.need_mosaic).length }}</div><div class="ds-label">已打码</div></div>
+            <div class="ds-card" style="background:var(--cyan-bg)"><div class="ds-num" style="color:var(--cyan)">{{ detail.highlights?.length||0 }}</div><div class="ds-label">高光片段</div></div>
+          </div>
+
+          <!-- Highlights (show first, more important) -->
+          <div class="hl-section" v-if="detail.highlights?.length">
+            <div class="hl-title">高光片段 ({{ detail.highlights.length }})</div>
+            <div class="hl-list">
+              <div v-for="(h,i) in detail.highlights" :key="i" class="hl-item">
+                <div class="hl-time">
+                  <span v-if="h.start_time">{{ toMMSS(h.start_time) }}</span>
+                  <span class="arrow" v-if="h.end_time">&#10132;</span>
+                  <span v-if="h.end_time">{{ toMMSS(h.end_time) }}</span>
+                  <span v-if="!h.start_time && h.timestamp">{{ toMMSS(h.timestamp) }}</span>
+                </div>
+                <div class="hl-desc">{{ h.description }}</div>
+                <div v-if="h.reason" class="hl-reason">{{ h.reason }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state" style="padding:20px">未识别到高光片段</div>
+
+          <!-- Violations -->
+          <div class="vio-section" v-if="dedupedViolations.length">
+            <div class="vio-title">违规检测 ({{ dedupedViolations.length }})</div>
+            <div v-if="groupedViolations.nudenet.length" class="vio-group">
+              <div class="vio-group-label">NudeNet 本地检测 ({{ groupedViolations.nudenet.length }})</div>
+              <div v-for="v in groupedViolations.nudenet" :key="'n'+v.timestamp+v.type" class="vio-item" :class="v.need_mosaic?'mosaic':'mark'">
+                <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                <span class="vio-type">{{ translateType(v.type) }}<span v-if="v.description" style="color:var(--text2)"> | {{ v.description }}</span></span>
+                <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic?'已打码':'仅标记' }}</span>
+              </div>
+            </div>
+            <div v-if="groupedViolations.vlm.length" class="vio-group">
+              <div class="vio-group-label">VLM 云端检测 ({{ groupedViolations.vlm.length }})</div>
+              <div v-for="v in groupedViolations.vlm" :key="'v'+v.timestamp+v.type" class="vio-item" :class="v.need_mosaic?'mosaic':'mark'">
+                <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                <span class="vio-type">{{ translateType(v.type) }}<span v-if="v.description" style="color:var(--text2)"> | {{ v.description }}</span></span>
+                <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic?'已打码':'仅标记' }}</span>
+              </div>
+            </div>
+            <div v-if="groupedViolations.ocr.length" class="vio-group">
+              <div class="vio-group-label">字幕文字检测 ({{ groupedViolations.ocr.length }})</div>
+              <div v-for="v in groupedViolations.ocr" :key="'o'+v.timestamp+v.type" class="vio-item mosaic">
+                <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                <span class="vio-type">{{ v.description || translateType(v.type) }}</span>
+                <span class="vio-tag mosaic">已打码</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state" style="padding:20px">未检测到违规内容</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+  createApp({
+    setup() {
+      const tasks = ref([]);
+      const detail = ref(null);
+      const uploading = ref(false);
+      const uploadPct = ref(0);
+      let timer = null;
+
+      const fetchTasks = async () => {
+        try { const r = await fetch('/api/tasks?size=50'); const d = await r.json(); tasks.value = d.items || []; } catch(e) {}
+      };
+      const selectTask = async (row) => {
+        try { const r = await fetch(`/api/tasks/${row.id}`); detail.value = await r.json(); } catch(e) {}
+      };
+      const download = (id) => window.open(`/api/tasks/${id}/download`);
+      const deleteTask = async (id) => {
+        try {
+          await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+          if (detail.value?.id === id) detail.value = null;
+          fetchTasks();
+        } catch(e) {}
+      };
+      const clearDone = async () => {
+        const done = tasks.value.filter(t => t.status === 'done' || t.status === 'failed');
+        for (const t of done) await fetch(`/api/tasks/${t.id}`, { method: 'DELETE' });
+        detail.value = null;
+        fetchTasks();
+      };
+      const uploadFile = (file) => {
+        if (!file) return;
+        uploading.value = true; uploadPct.value = 0;
+        const fd = new FormData(); fd.append('file', file);
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) uploadPct.value = Math.round(e.loaded/e.total*100); };
+        xhr.onload = () => { uploading.value = false; fetchTasks(); };
+        xhr.onerror = () => { uploading.value = false; };
+        xhr.open('POST', '/api/tasks'); xhr.send(fd);
+      };
+      const onFileSelect = (e) => uploadFile(e.target.files[0]);
+      const onDrop = (e) => uploadFile(e.dataTransfer.files[0]);
+
+      const statusText = (s) => ({done:'已完成',processing:'处理中',failed:'失败',pending:'等待中'}[s]||s);
+      const formatTime = (t) => t ? new Date(t).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      const typeMap = {
+        'FEMALE_BREAST_EXPOSED':'女性胸部暴露','FEMALE_GENITALIA_EXPOSED':'女性私密部位暴露',
+        'MALE_GENITALIA_EXPOSED':'男性私密部位暴露','BUTTOCKS_EXPOSED':'臀部暴露',
+        'ANUS_EXPOSED':'隐私部位暴露','BELLY_EXPOSED':'腹部暴露',
+        'FEMALE_BREAST_COVERED':'女性胸部(遮挡)','BUTTOCKS_COVERED':'臀部(遮挡)',
+        'FACE_FEMALE':'女性面部','FACE_MALE':'男性面部',
+      };
+      const translateType = (t) => typeMap[t] || t;
+      const toMMSS = (val) => { const s=parseFloat(String(val).replace('s',''))||0; return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0'); };
+      const formatSec = (val) => toMMSS(val);
+
+      const dedupedViolations = computed(() => {
+        if (!detail.value?.violations) return [];
+        const seen = new Set();
+        return detail.value.violations.filter(v => {
+          const k = (parseFloat(String(v.timestamp).replace('s',''))||0).toFixed(1)+'|'+v.type;
+          if (seen.has(k)) return false; seen.add(k); return true;
+        }).sort((a,b) => (parseFloat(String(a.timestamp).replace('s',''))||0) - (parseFloat(String(b.timestamp).replace('s',''))||0));
+      });
+      const groupedViolations = computed(() => {
+        const g = { nudenet:[], vlm:[], ocr:[], other:[] };
+        for (const v of dedupedViolations.value) {
+          if (v.source === 'nudenet') g.nudenet.push(v);
+          else if (v.source === 'vlm') g.vlm.push(v);
+          else if (v.source === 'ocr' || v.source === 'ocr_vlm') g.ocr.push(v);
+          else g.other.push(v);
+        }
+        return g;
+      });
+
+      onMounted(() => { fetchTasks(); timer = setInterval(fetchTasks, 3000); });
+      onUnmounted(() => clearInterval(timer));
+
+      return { tasks, detail, uploading, uploadPct, dedupedViolations, groupedViolations,
+        selectTask, download, deleteTask, clearDone, onFileSelect, onDrop,
+        statusText, formatTime, translateType, toMMSS, formatSec };
+    }
+  }).mount('#app');
+  </script>
+</body>
+</html>

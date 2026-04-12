@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+celery[redis]
+redis
+sqlalchemy
+aiosqlite
+python-multipart
+nudenet
+opencv-python-headless
+httpx
+websockets
+Pillow
+numpy
+rapidocr-onnxruntime
