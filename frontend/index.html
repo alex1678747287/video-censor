@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>视频审核打码</title>
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://unpkg.com/element-plus"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
   <style>
     :root {
       --bg: #0f1117; --surface: #1a1d27; --surface2: #232733;
@@ -21,36 +21,40 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
     ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
     .app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
     .app-header .logo { width: 28px; height: 28px; background: linear-gradient(135deg, var(--primary), var(--cyan)); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; }
-    .app-header h1 { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+    .app-header h1 { font-size: 16px; font-weight: 600; color: var(--text); }
     .main { max-width: 1280px; margin: 0 auto; padding: 24px 32px; }
+    /* Tabs */
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; }
+    .tab-btn { flex: 1; padding: 10px 20px; border: none; background: transparent; color: var(--text2); font-size: 14px; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active { background: var(--primary); color: #fff; }
+    .tab-btn:hover:not(.active) { color: var(--text); background: var(--surface2); }
     /* Upload area */
     .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px; text-align: center; transition: all 0.3s; cursor: pointer; background: var(--surface); margin-bottom: 24px; }
     .upload-zone:hover { border-color: var(--primary); background: var(--primary-bg); }
     .upload-icon { font-size: 36px; color: var(--text2); margin-bottom: 8px; }
     .upload-text { color: var(--text2); font-size: 14px; }
     .upload-hint { color: var(--text2); font-size: 12px; opacity: 0.6; margin-top: 4px; }
-
+    .upload-batch-meta { font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.7; }
     /* Stats bar */
-    .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: transform 0.2s; }
-    .stat-item:hover { transform: translateY(-2px); }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
     .stat-num { font-size: 32px; font-weight: 700; line-height: 1.2; }
     .stat-label { font-size: 12px; color: var(--text2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-
     /* Task list */
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .section-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .section-title { font-size: 15px; font-weight: 600; }
     .task-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
     .task-row { display: grid; grid-template-columns: 1fr 100px 160px 160px 80px; align-items: center; gap: 12px; padding: 14px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; }
     .task-row:hover { border-color: var(--primary); background: var(--primary-bg); }
     .task-row.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
     .task-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .task-actions { display: flex; gap: 6px; justify-content: flex-end; }
-
-    /* Status badge */
+    .task-meta-stack { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .task-meta-main { font-size: 12px; color: var(--text2); }
+    .task-meta-sub { font-size: 11px; color: var(--text2); line-height: 1.45; }
+    /* Badge */
     .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
     .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
     .badge-done { background: var(--success-bg); color: var(--success); } .badge-done::before { background: var(--success); }
@@ -58,30 +62,25 @@
     .badge-pending { background: var(--primary-bg); color: var(--primary-light); } .badge-pending::before { background: var(--primary-light); }
     .badge-failed { background: var(--danger-bg); color: var(--danger); } .badge-failed::before { background: var(--danger); }
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-
-    /* Progress bar */
+    /* Progress */
     .progress-wrap { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
-
     /* Buttons */
     .btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s; }
     .btn-primary { background: var(--primary); color: #fff; } .btn-primary:hover { background: var(--primary-light); }
     .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); } .btn-ghost:hover { color: var(--danger); border-color: var(--danger); }
     .btn-sm { padding: 4px 10px; font-size: 11px; }
-
     /* Detail panel */
     .detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
     .detail-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .detail-header h2 { font-size: 15px; font-weight: 600; }
     .detail-body { padding: 24px; }
-
-    /* Detail stats */
-    .detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .queue-note { margin-bottom: 16px; padding: 12px 14px; background: var(--primary-bg); border: 1px solid rgba(129, 140, 248, 0.22); border-radius: 10px; color: var(--text2); font-size: 12px; line-height: 1.7; }
+    .detail-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .ds-card { padding: 16px; border-radius: var(--radius-sm); text-align: center; }
     .ds-card .ds-num { font-size: 28px; font-weight: 700; }
     .ds-card .ds-label { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    /* Highlight timeline */
+    /* Highlights */
     .hl-section { margin-bottom: 24px; }
     .hl-title { font-size: 14px; font-weight: 600; color: var(--cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .hl-title::before { content: ''; width: 3px; height: 16px; background: var(--cyan); border-radius: 2px; }
@@ -90,31 +89,132 @@
     .hl-item { position: relative; padding: 14px 16px; margin-bottom: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); transition: all 0.2s; }
     .hl-item:hover { border-color: var(--cyan); background: var(--cyan-bg); }
     .hl-item::before { content: ''; position: absolute; left: -17px; top: 20px; width: 10px; height: 10px; background: var(--cyan); border-radius: 50%; border: 2px solid var(--bg); z-index: 1; }
-    .hl-time { display: inline-flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; color: var(--cyan); font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+    .hl-time { display: inline-flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; color: var(--cyan); font-variant-numeric: tabular-nums; }
     .hl-time .arrow { font-size: 14px; color: var(--text2); }
     .hl-desc { font-size: 13px; color: var(--text); margin-top: 6px; line-height: 1.6; }
     .hl-reason { font-size: 12px; color: var(--text2); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
-
     /* Violations */
     .vio-section { margin-bottom: 16px; }
     .vio-title { font-size: 14px; font-weight: 600; color: var(--danger); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .vio-title::before { content: ''; width: 3px; height: 16px; background: var(--danger); border-radius: 2px; }
-    .vio-group { margin-bottom: 16px; }
-    .vio-group-label { font-size: 12px; font-weight: 600; color: var(--text2); padding: 6px 12px; background: var(--surface2); border-radius: 6px; margin-bottom: 8px; display: inline-block; }
-    .vio-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 4px; background: var(--surface2); border-radius: 6px; font-size: 13px; border-left: 3px solid transparent; }
-    .vio-item.mosaic { border-left-color: var(--danger); }
-    .vio-item.mark { border-left-color: var(--warn); }
-    .vio-time { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 50px; color: var(--text); }
-    .vio-type { flex: 1; }
+    .vio-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; margin-bottom: 4px; background: var(--surface2); border-radius: 6px; font-size: 13px; border-left: 3px solid transparent; }
+    .vio-item.mosaic { border-left-color: var(--danger); } .vio-item.mark { border-left-color: var(--warn); }
+    .vio-time { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 50px; }
+    .vio-type { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .vio-main { color: var(--text); line-height: 1.55; }
+    .vio-meta-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 11px; color: var(--text2); line-height: 1.5; }
+    .vio-confidence { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-weight: 700; letter-spacing: 0.2px; }
+    .vio-confidence.high { background: var(--success-bg); color: var(--success); }
+    .vio-confidence.medium { background: var(--warn-bg); color: var(--warn); }
+    .vio-confidence.low { background: var(--primary-bg); color: var(--primary-light); }
+    .vio-evidence { font-size: 12px; color: var(--text2); line-height: 1.55; }
     .vio-tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
     .vio-tag.mosaic { background: var(--danger-bg); color: var(--danger); }
     .vio-tag.mark { background: var(--warn-bg); color: var(--warn); }
-
+    .vio-group { margin-bottom: 16px; }
+    .vio-group-label { font-size: 12px; font-weight: 600; color: var(--text2); padding: 6px 12px; background: var(--surface2); border-radius: 6px; margin-bottom: 8px; display: inline-block; }
+    .confidence-note { margin: -4px 0 12px; font-size: 12px; color: var(--text2); line-height: 1.6; }
     .empty-state { text-align: center; padding: 40px; color: var(--text2); font-size: 13px; }
-
-    /* Override Element Plus for dark theme */
+    /* Drama form */
+    .drama-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .drama-intro { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 16px; }
+    .drama-intro-main { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+    .section-kicker { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 6px 10px; border-radius: 999px; background: var(--primary-bg); color: var(--primary-light); font-size: 12px; font-weight: 600; letter-spacing: 0.3px; }
+    .drama-headline { font-size: 24px; line-height: 1.35; font-weight: 700; color: var(--text); }
+    .drama-subtitle { font-size: 13px; line-height: 1.7; color: var(--text2); max-width: 760px; }
+    .guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .guide-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; display: flex; gap: 10px; min-height: 92px; }
+    .guide-index { width: 28px; height: 28px; border-radius: 50%; background: var(--cyan-bg); color: var(--cyan); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .guide-copy { display: flex; flex-direction: column; gap: 4px; }
+    .guide-copy strong { font-size: 13px; color: var(--text); }
+    .guide-copy span { font-size: 12px; line-height: 1.6; color: var(--text2); }
+    .builder-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr); gap: 16px; align-items: start; }
+    .builder-main, .builder-side { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+    .builder-main .form-input, .builder-side .form-input { background: var(--bg); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-label { font-size: 13px; color: var(--text2); font-weight: 500; }
+    .form-input { padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; outline: none; }
+    .form-input:focus { border-color: var(--primary); }
+    .form-input.compact { max-width: 160px; }
+    .field-inline { display: flex; align-items: center; gap: 10px; }
+    .field-unit { font-size: 12px; color: var(--text2); }
+    .field-hint { font-size: 12px; color: var(--text2); line-height: 1.65; }
+    .preset-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .preset-chip { border: 1px solid var(--border); background: var(--bg); color: var(--text2); border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .preset-chip:hover { color: var(--text); border-color: var(--primary-light); }
+    .preset-chip.active { color: var(--text); background: var(--primary-bg); border-color: var(--primary-light); box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.18); }
+    .drama-upload-zone { padding: 28px 22px; margin-bottom: 0; background: linear-gradient(180deg, rgba(6, 182, 212, 0.04), rgba(99, 102, 241, 0.05)); }
+    .selection-panel { margin-top: 16px; background: rgba(15, 17, 23, 0.55); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+    .selection-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .summary-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .summary-value { font-size: 20px; font-weight: 700; color: var(--text); }
+    .summary-label { margin-top: 4px; font-size: 11px; color: var(--text2); letter-spacing: 0.4px; text-transform: uppercase; }
+    .selection-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .file-preview-list { display: flex; flex-direction: column; gap: 8px; }
+    .file-preview-item { display: grid; grid-template-columns: 68px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+    .file-preview-index { font-size: 11px; font-weight: 700; color: var(--primary-light); background: var(--primary-bg); border-radius: 999px; padding: 6px 10px; text-align: center; }
+    .file-preview-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-preview-meta { font-size: 12px; color: var(--text2); }
+    .file-preview-more { margin-top: 10px; font-size: 12px; color: var(--text2); }
+    .tips-panel-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+    .tips-list { display: flex; flex-direction: column; gap: 10px; }
+    .tip-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .tip-item strong { display: block; font-size: 13px; color: var(--text); margin-bottom: 4px; }
+    .tip-item span { display: block; font-size: 12px; line-height: 1.65; color: var(--text2); }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .task-name-stack { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .task-submeta { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Episode list in drama detail */
+    .ep-list { margin-top: 16px; }
+    .ep-row { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; overflow: hidden; }
+    .ep-row-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; }
+    .ep-row-header:hover { background: var(--primary-bg); }
+    .ep-num { font-size: 13px; font-weight: 700; color: var(--primary-light); min-width: 50px; }
+    .ep-filename { font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ep-vio-count { font-size: 12px; color: var(--danger); }
+    .ep-details { padding: 0 16px 14px; display: flex; flex-direction: column; gap: 12px; }
+    .ep-section { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .ep-section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .ep-section-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .ep-section-meta { font-size: 12px; color: var(--text2); }
+    .ep-highlights { display: flex; flex-direction: column; gap: 6px; padding: 0; }
+    .ep-hl-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; margin-top: 0; background: var(--surface2); border-radius: 6px; font-size: 12px; }
+    .ep-hl-time { color: var(--cyan); font-weight: 600; min-width: 80px; font-variant-numeric: tabular-nums; }
+    .ep-hl-desc { color: var(--text2); line-height: 1.5; }
+    .ep-violations { display: flex; flex-direction: column; gap: 10px; }
+    .ep-empty { font-size: 12px; color: var(--text2); line-height: 1.65; }
+    .ep-vio-inline { font-size: 12px; color: var(--text2); }
+    /* Stage text */
+    .stage-text { font-size: 11px; color: var(--text2); margin-top: 2px; }
     .el-upload-dragger { background: transparent !important; border: none !important; }
-    .el-message { --el-message-bg-color: var(--surface2) !important; }
+    @media (max-width: 1100px) {
+      .drama-intro, .builder-grid { grid-template-columns: 1fr; }
+      .selection-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .main { padding: 20px 16px; }
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .form-grid, .guide-grid { grid-template-columns: 1fr; }
+      .task-row { grid-template-columns: 1fr; align-items: flex-start; }
+      .task-actions { justify-content: flex-start; }
+      .detail-body { padding: 20px 16px; }
+      .ep-row-header { flex-wrap: wrap; }
+    }
+    @media (max-width: 640px) {
+      .app-header { padding: 0 16px; }
+      .main { padding: 16px 12px 24px; }
+      .tab-btn { padding: 10px 12px; }
+      .upload-zone { padding: 28px 20px; }
+      .drama-headline { font-size: 20px; }
+      .stats-bar, .selection-summary { grid-template-columns: 1fr; }
+      .selection-toolbar, .field-inline, .form-actions { flex-direction: column; align-items: stretch; }
+      .form-input.compact { max-width: 100%; }
+      .file-preview-item { grid-template-columns: 1fr; }
+      .file-preview-index { width: fit-content; }
+      .task-submeta { white-space: normal; }
+    }
   </style>
 </head>
 <body>
@@ -124,194 +224,848 @@
       <h1>视频审核打码系统</h1>
     </div>
     <div class="main">
-      <!-- Upload -->
-      <div class="upload-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop">
-        <input ref="fileInput" type="file" accept="video/*" style="display:none" @change="onFileSelect">
-        <div class="upload-icon">&#8679;</div>
-        <div class="upload-text">拖拽视频到此处，或点击上传</div>
-        <div class="upload-hint">支持 MP4 / MOV / AVI / MKV，最大 500MB</div>
-        <div v-if="uploading" style="margin-top:12px">
-          <div class="progress-wrap" style="width:200px;margin:0 auto"><div class="progress-fill" :style="{width:uploadPct+'%',background:'var(--primary)'}"></div></div>
-          <div style="font-size:12px;color:var(--text2);margin-top:6px">上传中 {{ uploadPct }}%</div>
-        </div>
+      <!-- Tab Bar -->
+      <div class="tab-bar">
+        <button class="tab-btn" :class="{active:tab==='single'}" @click="tab='single'">单视频审核</button>
+        <button class="tab-btn" :class="{active:tab==='drama'}" @click="tab='drama'">短剧合集</button>
       </div>
 
-      <!-- Stats -->
-      <div class="stats-bar" v-if="tasks.length">
-        <div class="stat-item"><div class="stat-num" style="color:var(--primary-light)">{{ tasks.length }}</div><div class="stat-label">总任务</div></div>
-        <div class="stat-item"><div class="stat-num" style="color:var(--success)">{{ tasks.filter(t=>t.status==='done').length }}</div><div class="stat-label">已完成</div></div>
-        <div class="stat-item"><div class="stat-num" style="color:var(--warn)">{{ tasks.filter(t=>t.status==='processing').length }}</div><div class="stat-label">处理中</div></div>
-        <div class="stat-item"><div class="stat-num" style="color:var(--danger)">{{ tasks.filter(t=>t.status==='failed').length }}</div><div class="stat-label">失败</div></div>
-      </div>
-
-      <!-- Task List -->
-      <div class="section-header">
-        <div class="section-title">任务列表</div>
-        <button v-if="tasks.length" class="btn btn-ghost btn-sm" @click="clearDone">清除已完成</button>
-      </div>
-      <div class="task-list">
-        <div v-for="t in tasks" :key="t.id" class="task-row" :class="{active: detail?.id===t.id}" @click="selectTask(t)">
-          <div class="task-name">{{ t.filename }}</div>
-          <div><span class="badge" :class="'badge-'+t.status">{{ statusText(t.status) }}</span></div>
-          <div>
-            <div class="progress-wrap"><div class="progress-fill" :style="{width:Math.round(t.progress*100)+'%', background: t.status==='done'?'var(--success)':t.status==='failed'?'var(--danger)':'var(--primary)'}"></div></div>
-            <div style="font-size:11px;color:var(--text2);margin-top:3px">{{ Math.round(t.progress*100) }}%</div>
-          </div>
-          <div style="font-size:12px;color:var(--text2)">{{ formatTime(t.created_at) }}</div>
-          <div class="task-actions">
-            <button v-if="t.status==='done'" class="btn btn-primary btn-sm" @click.stop="download(t.id)">下载</button>
-            <button class="btn btn-ghost btn-sm" @click.stop="deleteTask(t.id)">删除</button>
+      <!-- ========== Single Task Tab ========== -->
+      <div v-show="tab==='single'">
+        <div class="upload-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop">
+          <input ref="fileInput" type="file" accept="video/*" multiple style="display:none" @change="onFileSelect">
+          <div class="upload-icon">&#8679;</div>
+          <div class="upload-text">拖拽多个视频到此处，或点击批量上传</div>
+          <div class="upload-hint">支持 MP4 / MOV / AVI / MKV，单个文件最大 4GB。每个视频会生成独立任务，算力不足时自动排队。</div>
+          <div v-if="uploading" style="margin-top:12px">
+            <div class="progress-wrap" style="width:240px;margin:0 auto"><div class="progress-fill" :style="{width:uploadOverallPct+'%',background:'var(--primary)'}"></div></div>
+            <div class="upload-batch-meta">
+              <div>正在提交 {{ uploadBatchDone }}/{{ uploadBatchTotal }} 个任务 · 总进度 {{ uploadOverallPct }}%</div>
+              <div v-if="uploadCurrentName">当前文件：{{ uploadCurrentName }}</div>
+            </div>
           </div>
         </div>
-        <div v-if="!tasks.length" class="empty-state">暂无任务，上传视频开始审核</div>
-      </div>
-
-      <!-- Detail Panel -->
-      <div v-if="detail" class="detail-panel">
-        <div class="detail-header">
-          <h2>{{ detail.filename }}</h2>
-          <button class="btn btn-ghost btn-sm" @click="detail=null">关闭</button>
+        <div class="stats-bar" v-if="tasks.length">
+          <div class="stat-item"><div class="stat-num" style="color:var(--primary-light)">{{ tasks.length }}</div><div class="stat-label">总任务</div></div>
+          <div class="stat-item"><div class="stat-num" style="color:var(--success)">{{ tasks.filter(t=>t.status==='done').length }}</div><div class="stat-label">已完成</div></div>
+          <div class="stat-item"><div class="stat-num" style="color:var(--warn)">{{ tasks.filter(t=>t.status==='processing').length }}</div><div class="stat-label">处理中</div></div>
+          <div class="stat-item"><div class="stat-num" style="color:var(--primary-light)">{{ tasks.filter(t=>t.status==='pending').length }}</div><div class="stat-label">排队中</div></div>
+          <div class="stat-item"><div class="stat-num" style="color:var(--danger)">{{ tasks.filter(t=>t.status==='failed').length }}</div><div class="stat-label">失败</div></div>
         </div>
-        <div class="detail-body">
-          <!-- Stats -->
-          <div class="detail-stats">
-            <div class="ds-card" style="background:var(--danger-bg)"><div class="ds-num" style="color:var(--danger)">{{ dedupedViolations.length }}</div><div class="ds-label">违规总数</div></div>
-            <div class="ds-card" style="background:var(--warn-bg)"><div class="ds-num" style="color:var(--warn)">{{ dedupedViolations.filter(v=>v.need_mosaic).length }}</div><div class="ds-label">已打码</div></div>
-            <div class="ds-card" style="background:var(--cyan-bg)"><div class="ds-num" style="color:var(--cyan)">{{ detail.highlights?.length||0 }}</div><div class="ds-label">高光片段</div></div>
+        <div class="section-header">
+          <div class="section-title">任务列表</div>
+          <button v-if="tasks.length" class="btn btn-ghost btn-sm" @click="clearDone">清除已完成</button>
+        </div>
+        <div class="task-list">
+          <div v-for="t in tasks" :key="t.id" class="task-row" :class="{active:detail?.id===t.id}" @click="selectTask(t)">
+            <div class="task-name task-name-stack">
+              <div>{{ t.filename }}</div>
+              <div class="task-submeta">{{ queueSummary(t) }}</div>
+            </div>
+            <div><span class="badge" :class="'badge-'+t.status">{{ statusText(t.status) }}</span></div>
+            <div>
+              <div class="progress-wrap"><div class="progress-fill" :style="{width:Math.round(t.progress*100)+'%',background:t.status==='done'?'var(--success)':t.status==='failed'?'var(--danger)':'var(--primary)'}"></div></div>
+              <div style="font-size:11px;color:var(--text2);margin-top:3px">{{ Math.round(t.progress*100) }}%</div>
+              <div class="stage-text">{{ taskStageSummary(t) }}</div>
+            </div>
+            <div class="task-meta-stack">
+              <div class="task-meta-main">{{ formatTime(t.created_at) }}</div>
+              <div class="task-meta-sub">{{ etaText(t) }}</div>
+            </div>
+            <div class="task-actions">
+              <button v-if="t.status==='done'" class="btn btn-primary btn-sm" @click.stop="download(t.id)">下载</button>
+              <button class="btn btn-ghost btn-sm" @click.stop="deleteTask(t.id)">删除</button>
+            </div>
           </div>
-
-          <!-- Highlights (show first, more important) -->
-          <div class="hl-section" v-if="detail.highlights?.length">
-            <div class="hl-title">高光片段 ({{ detail.highlights.length }})</div>
-            <div class="hl-list">
-              <div v-for="(h,i) in detail.highlights" :key="i" class="hl-item">
-                <div class="hl-time">
-                  <span v-if="h.start_time">{{ toMMSS(h.start_time) }}</span>
-                  <span class="arrow" v-if="h.end_time">&#10132;</span>
-                  <span v-if="h.end_time">{{ toMMSS(h.end_time) }}</span>
-                  <span v-if="!h.start_time && h.timestamp">{{ toMMSS(h.timestamp) }}</span>
+          <div v-if="!tasks.length" class="empty-state">暂无任务，上传视频开始审核</div>
+        </div>
+        <!-- Single Detail Panel -->
+        <div v-if="detail" class="detail-panel">
+          <div class="detail-header">
+            <h2>{{ detail.filename }}</h2>
+            <button class="btn btn-ghost btn-sm" @click="detail=null">关闭</button>
+          </div>
+          <div class="detail-body">
+            <div v-if="detail.status==='pending' || detail.status==='processing'" class="queue-note">{{ queueSummary(detail) }}。{{ etaText(detail) }}</div>
+            <div class="detail-stats">
+              <div class="ds-card" style="background:var(--danger-bg)"><div class="ds-num" style="color:var(--danger)">{{ dedupedViolations.length }}</div><div class="ds-label">违规总数</div></div>
+              <div class="ds-card" style="background:var(--warn-bg)"><div class="ds-num" style="color:var(--warn)">{{ dedupedViolations.filter(v=>v.need_mosaic).length }}</div><div class="ds-label">已打码</div></div>
+              <div class="ds-card" style="background:var(--cyan-bg)"><div class="ds-num" style="color:var(--cyan)">{{ detail.highlights?.length||0 }}</div><div class="ds-label">高光片段</div></div>
+              <div class="ds-card" style="background:var(--primary-bg)"><div class="ds-num" style="color:var(--primary-light)">{{ averageConfidenceText(dedupedViolations) }}</div><div class="ds-label">平均置信度</div></div>
+            </div>
+            <div v-if="dedupedViolations.length" class="confidence-note">置信度表示系统对命中的把握程度，用于人工复核优先级参考，不等同于人工标注准确率。</div>
+            <div class="hl-section" v-if="detail.highlights?.length">
+              <div class="hl-title">高光片段 ({{ detail.highlights.length }})</div>
+              <div class="hl-list">
+                <div v-for="(h,i) in detail.highlights" :key="i" class="hl-item">
+                  <div class="hl-time">
+                    <span v-if="h.start_time">{{ toMMSS(h.start_time) }}</span>
+                    <span class="arrow" v-if="h.end_time">&#10132;</span>
+                    <span v-if="h.end_time">{{ toMMSS(h.end_time) }}</span>
+                    <span v-if="!h.start_time && h.timestamp">{{ toMMSS(h.timestamp) }}</span>
+                  </div>
+                  <div class="hl-desc">{{ h.description }}</div>
+                  <div v-if="h.reason" class="hl-reason">{{ h.reason }}</div>
                 </div>
-                <div class="hl-desc">{{ h.description }}</div>
-                <div v-if="h.reason" class="hl-reason">{{ h.reason }}</div>
+              </div>
+            </div>
+            <div class="vio-section" v-if="dedupedViolations.length">
+              <div class="vio-title">违规检测 ({{ dedupedViolations.length }})</div>
+              <div v-if="groupedViolations.nudenet.length" class="vio-group">
+                <div class="vio-group-label">NudeNet 本地检测 ({{ groupedViolations.nudenet.length }})</div>
+                <div v-for="v in groupedViolations.nudenet" :key="'n'+v.timestamp+v.type" class="vio-item" :class="v.need_mosaic?'mosaic':'mark'">
+                  <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                  <span class="vio-type">
+                    <span class="vio-main">{{ violationSummary(v) }}</span>
+                    <span class="vio-meta-line">
+                      <span class="vio-confidence" :class="confidenceClass(v)">{{ confidenceText(v) }}</span>
+                      <span>{{ violationBasis(v) }}</span>
+                    </span>
+                    <span v-if="violationEvidence(v)" class="vio-evidence">{{ violationEvidence(v) }}</span>
+                  </span>
+                  <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic?'已打码':'仅标记' }}</span>
+                </div>
+              </div>
+              <div v-if="groupedViolations.vlm.length" class="vio-group">
+                <div class="vio-group-label">VLM 云端检测 ({{ groupedViolations.vlm.length }})</div>
+                <div v-for="v in groupedViolations.vlm" :key="'v'+v.timestamp+v.type" class="vio-item" :class="v.need_mosaic?'mosaic':'mark'">
+                  <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                  <span class="vio-type">
+                    <span class="vio-main">{{ violationSummary(v) }}</span>
+                    <span class="vio-meta-line">
+                      <span class="vio-confidence" :class="confidenceClass(v)">{{ confidenceText(v) }}</span>
+                      <span>{{ violationBasis(v) }}</span>
+                    </span>
+                    <span v-if="violationEvidence(v)" class="vio-evidence">{{ violationEvidence(v) }}</span>
+                  </span>
+                  <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic?'已打码':'仅标记' }}</span>
+                </div>
+              </div>
+              <div v-if="groupedViolations.ocr.length" class="vio-group">
+                <div class="vio-group-label">字幕文字检测 ({{ groupedViolations.ocr.length }})</div>
+                <div v-for="v in groupedViolations.ocr" :key="'o'+v.timestamp+v.type" class="vio-item mosaic">
+                  <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                  <span class="vio-type">
+                    <span class="vio-main">{{ violationSummary(v) }}</span>
+                    <span class="vio-meta-line">
+                      <span class="vio-confidence" :class="confidenceClass(v)">{{ confidenceText(v) }}</span>
+                      <span>{{ violationBasis(v) }}</span>
+                    </span>
+                    <span v-if="violationEvidence(v)" class="vio-evidence">{{ violationEvidence(v) }}</span>
+                  </span>
+                  <span class="vio-tag mosaic">已打码</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="!dedupedViolations.length" class="empty-state" style="padding:20px">未检测到违规内容</div>
+          </div>
+        </div>
+      </div>
+      <!-- ========== Drama Tab ========== -->
+      <div v-show="tab==='drama'">
+        <!-- Drama Upload Form -->
+        <div class="drama-form">
+          <div class="drama-intro">
+            <div class="drama-intro-main">
+              <div class="section-kicker">短剧合集处理</div>
+              <div class="drama-headline">按集上传，系统会自动拼接、审核、打码并生成合集成片</div>
+              <div class="drama-subtitle">15 分钟不再是写死限制，你可以直接在页面调整输出上限。超过上限时，系统会从尾部裁剪，并把超出的剧集标记为“已裁剪”，方便你判断截断位置。</div>
+            </div>
+            <div class="guide-grid">
+              <div class="guide-item">
+                <div class="guide-index">1</div>
+                <div class="guide-copy">
+                  <strong>选整部短剧</strong>
+                  <span>拖入或选择所有分集，页面会优先按文件名里的集号自动排序。</span>
+                </div>
+              </div>
+              <div class="guide-item">
+                <div class="guide-index">2</div>
+                <div class="guide-copy">
+                  <strong>调输出上限</strong>
+                  <span>可选 10 / 15 / 20 / 30 分钟，也可以自定义分钟数。</span>
+                </div>
+              </div>
+              <div class="guide-item">
+                <div class="guide-index">3</div>
+                <div class="guide-copy">
+                  <strong>自动跑完整链路</strong>
+                  <span>系统会完成去尾、拼接、加速、审核打码、高光识别和尾帧钩子。</span>
+                </div>
+              </div>
+              <div class="guide-item">
+                <div class="guide-index">4</div>
+                <div class="guide-copy">
+                  <strong>处理结果可追踪</strong>
+                  <span>任务列表会展示阶段进度，详情里能看到每集高光和裁剪状态。</span>
+                </div>
               </div>
             </div>
           </div>
-          <div v-else class="empty-state" style="padding:20px">未识别到高光片段</div>
 
-          <!-- Violations -->
-          <div class="vio-section" v-if="dedupedViolations.length">
-            <div class="vio-title">违规检测 ({{ dedupedViolations.length }})</div>
-            <div v-if="groupedViolations.nudenet.length" class="vio-group">
-              <div class="vio-group-label">NudeNet 本地检测 ({{ groupedViolations.nudenet.length }})</div>
-              <div v-for="v in groupedViolations.nudenet" :key="'n'+v.timestamp+v.type" class="vio-item" :class="v.need_mosaic?'mosaic':'mark'">
-                <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
-                <span class="vio-type">{{ translateType(v.type) }}<span v-if="v.description" style="color:var(--text2)"> | {{ v.description }}</span></span>
-                <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic?'已打码':'仅标记' }}</span>
+          <div class="builder-grid">
+            <div class="builder-main">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">剧名</label>
+                  <input class="form-input" v-model="dramaForm.title" placeholder="输入剧名">
+                  <div class="field-hint">用于任务列表展示，也会作为成片顶部常驻标签。</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">加速倍率</label>
+                  <div class="preset-row">
+                    <button
+                      v-for="preset in speedPresets"
+                      :key="preset.value"
+                      type="button"
+                      class="preset-chip"
+                      :class="{active: Math.abs(dramaForm.speed_factor - preset.value) < 0.001}"
+                      @click="setSpeedPreset(preset.value)"
+                    >{{ preset.label }}</button>
+                  </div>
+                  <div class="field-inline">
+                    <input class="form-input compact" v-model.number="dramaForm.speed_factor" type="number" step="0.1" min="0.5" max="4.0">
+                    <span class="field-unit">x</span>
+                  </div>
+                  <div class="field-hint">推荐 1.2x，音视频会同步变速。</div>
+                </div>
+                <div class="form-group full">
+                  <label class="form-label">输出时长上限</label>
+                  <div class="preset-row">
+                    <button
+                      v-for="preset in durationPresets"
+                      :key="preset.value"
+                      type="button"
+                      class="preset-chip"
+                      :class="{active: dramaForm.max_duration === preset.value}"
+                      @click="setDurationPreset(preset.value)"
+                    >{{ preset.label }}</button>
+                  </div>
+                  <div class="field-inline">
+                    <input class="form-input compact" v-model.number="maxDurationMinutes" type="number" min="1" max="120" step="0.5">
+                    <span class="field-unit">分钟</span>
+                  </div>
+                  <div class="field-hint">当前上限 {{ formatDuration(dramaForm.max_duration) }}。超出部分会自动裁剪，尾部超出的剧集会在详情中显示为“已裁剪”。</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">起始集数</label>
+                  <input class="form-input" v-model.number="dramaForm.episode_start" type="number" min="1">
+                  <div class="field-hint">当前预计生成第 {{ dramaForm.episode_start }} - {{ dramaEpisodeEnd }} 集。</div>
+                </div>
+                <div class="form-group full">
+                  <label class="form-label">提示语</label>
+                  <input class="form-input" v-model="dramaForm.disclaimer" placeholder="底部提示文字">
+                  <div class="field-hint">会固定显示在成片底部，适合填写平台安全提示或传播声明。</div>
+                </div>
+              </div>
+
+              <div class="upload-zone drama-upload-zone" @click="dramaFileInput?.click()" @dragover.prevent @drop.prevent="onDramaDrop">
+                <input ref="dramaFileInput" type="file" accept="video/*" multiple style="display:none" @change="onDramaFileSelect">
+                <div class="upload-icon" style="font-size:28px">&#8679;</div>
+                <div class="upload-text">拖拽或选择整部短剧的全部分集</div>
+                <div class="upload-hint">支持 MP4 / MOV / AVI / MKV / FLV / WMV。系统会优先按文件名中的集号重新排序，避免 10 集排在 2 集前面。</div>
+              </div>
+
+              <div v-if="sortedDramaFiles.length" class="selection-panel">
+                <div class="selection-summary">
+                  <div class="summary-card">
+                    <div class="summary-value">{{ sortedDramaFiles.length }}</div>
+                    <div class="summary-label">已选分集</div>
+                  </div>
+                  <div class="summary-card">
+                    <div class="summary-value">第 {{ dramaForm.episode_start }} - {{ dramaEpisodeEnd }} 集</div>
+                    <div class="summary-label">处理范围</div>
+                  </div>
+                  <div class="summary-card">
+                    <div class="summary-value">{{ totalDramaSizeText }}</div>
+                    <div class="summary-label">文件总大小</div>
+                  </div>
+                  <div class="summary-card">
+                    <div class="summary-value">{{ formatDuration(dramaForm.max_duration) }}</div>
+                    <div class="summary-label">输出上限</div>
+                  </div>
+                </div>
+
+                <div class="selection-toolbar">
+                  <div class="section-title">排序预览</div>
+                  <button class="btn btn-ghost btn-sm" @click="clearDramaFiles">清空重选</button>
+                </div>
+
+                <div class="file-preview-list">
+                  <div v-for="(file, index) in visibleDramaFiles" :key="file.name + file.size" class="file-preview-item">
+                    <div class="file-preview-index">第 {{ dramaForm.episode_start + index }} 集</div>
+                    <div>
+                      <div class="file-preview-name">{{ file.name }}</div>
+                      <div class="file-preview-meta">{{ formatFileSize(file.size) }}</div>
+                    </div>
+                    <div class="file-preview-meta">{{ extractEpisodeLabel(file.name) }}</div>
+                  </div>
+                </div>
+                <div v-if="sortedDramaFiles.length > visibleDramaFiles.length" class="file-preview-more">其余 {{ sortedDramaFiles.length - visibleDramaFiles.length }} 集会继续按相同规则排序并处理。</div>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn btn-primary" @click="submitDrama" :disabled="!sortedDramaFiles.length||!dramaForm.title||dramaUploading">
+                  {{ dramaUploading ? '上传中...' : '开始处理' }}
+                </button>
               </div>
             </div>
-            <div v-if="groupedViolations.vlm.length" class="vio-group">
-              <div class="vio-group-label">VLM 云端检测 ({{ groupedViolations.vlm.length }})</div>
-              <div v-for="v in groupedViolations.vlm" :key="'v'+v.timestamp+v.type" class="vio-item" :class="v.need_mosaic?'mosaic':'mark'">
-                <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
-                <span class="vio-type">{{ translateType(v.type) }}<span v-if="v.description" style="color:var(--text2)"> | {{ v.description }}</span></span>
-                <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic?'已打码':'仅标记' }}</span>
-              </div>
-            </div>
-            <div v-if="groupedViolations.ocr.length" class="vio-group">
-              <div class="vio-group-label">字幕文字检测 ({{ groupedViolations.ocr.length }})</div>
-              <div v-for="v in groupedViolations.ocr" :key="'o'+v.timestamp+v.type" class="vio-item mosaic">
-                <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
-                <span class="vio-type">{{ v.description || translateType(v.type) }}</span>
-                <span class="vio-tag mosaic">已打码</span>
+
+            <div class="builder-side">
+              <div class="tips-panel-title">提交前你会得到什么</div>
+              <div class="tips-list">
+                <div class="tip-item">
+                  <strong>自动重排分集顺序</strong>
+                  <span>优先识别文件名中的数字集号，再做自然排序，减少手工改名和误排问题。</span>
+                </div>
+                <div class="tip-item">
+                  <strong>时长上限可调</strong>
+                  <span>页面直接控制输出上限，不需要改代码；默认 15 分钟，适合常见平台分发。</span>
+                </div>
+                <div class="tip-item">
+                  <strong>裁剪结果可解释</strong>
+                  <span>如果总时长超限，尾部超出的剧集会被明确标记为“已裁剪”，不会混成“已审核”。</span>
+                </div>
+                <div class="tip-item">
+                  <strong>任务状态更直观</strong>
+                  <span>任务列表会展示当前阶段，详情里可以查看每集高光数量、裁剪状态和输出参数。</span>
+                </div>
               </div>
             </div>
           </div>
-          <div v-else class="empty-state" style="padding:20px">未检测到违规内容</div>
+        </div>
+
+        <!-- Drama Task List -->
+        <div class="section-header">
+          <div class="section-title">短剧任务</div>
+        </div>
+        <div class="task-list">
+          <div v-for="d in dramas" :key="d.id" class="task-row drama-task-row" style="grid-template-columns:1fr 100px 160px 160px 80px" :class="{active:dramaDetail?.id===d.id}" @click="selectDrama(d)">
+            <div class="task-name task-name-stack">
+              <div>{{ d.title }}</div>
+              <div class="task-submeta">{{ d.episode_start }} - {{ d.episode_end }} 集 · {{ formatDuration(d.max_duration) }} 上限 · {{ d.speed_factor }}x · {{ queueSummary(d) }}</div>
+            </div>
+            <div><span class="badge" :class="'badge-'+d.status">{{ statusText(d.status) }}</span></div>
+            <div>
+              <div class="progress-wrap"><div class="progress-fill" :style="{width:Math.round((d.progress||0)*100)+'%',background:d.status==='done'?'var(--success)':d.status==='failed'?'var(--danger)':'var(--primary)'}"></div></div>
+              <div class="stage-text">{{ taskStageSummary(d) }}</div>
+            </div>
+            <div class="task-meta-stack">
+              <div class="task-meta-main">{{ formatTime(d.created_at) }}</div>
+              <div class="task-meta-sub">{{ etaText(d) }}</div>
+            </div>
+            <div class="task-actions">
+              <button v-if="d.status==='done'" class="btn btn-primary btn-sm" @click.stop="downloadDrama(d.id)">下载</button>
+              <button class="btn btn-ghost btn-sm" @click.stop="deleteDrama(d.id)">删除</button>
+            </div>
+          </div>
+          <div v-if="!dramas.length" class="empty-state">暂无短剧任务</div>
+        </div>
+        <!-- Drama Detail Panel -->
+        <div v-if="dramaDetail" class="detail-panel">
+          <div class="detail-header">
+            <h2>{{ dramaDetail.title }}</h2>
+            <button class="btn btn-ghost btn-sm" @click="dramaDetail=null">关闭</button>
+          </div>
+          <div class="detail-body">
+            <div v-if="dramaDetail.status==='pending' || dramaDetail.status==='processing'" class="queue-note">{{ queueSummary(dramaDetail) }}。{{ etaText(dramaDetail) }}</div>
+            <div class="detail-stats">
+              <div class="ds-card" style="background:var(--primary-bg)"><div class="ds-num" style="color:var(--primary-light)">{{ dramaDetail.episodes?.length||0 }}</div><div class="ds-label">总集数</div></div>
+              <div class="ds-card" style="background:var(--success-bg)"><div class="ds-num" style="color:var(--success)">{{ reviewedEpisodeCount }}</div><div class="ds-label">已审核集数</div></div>
+              <div class="ds-card" style="background:var(--warn-bg)"><div class="ds-num" style="color:var(--warn)">{{ trimmedEpisodeCount }}</div><div class="ds-label">已裁剪集数</div></div>
+              <div class="ds-card" style="background:var(--success-bg)"><div class="ds-num" style="color:var(--success)">{{ dramaDetail.speed_factor }}x</div><div class="ds-label">加速倍率</div></div>
+              <div class="ds-card" style="background:var(--primary-bg)"><div class="ds-num" style="color:var(--primary-light)">{{ formatDuration(dramaDetail.max_duration) }}</div><div class="ds-label">时长上限</div></div>
+              <div class="ds-card" style="background:var(--cyan-bg)"><div class="ds-num" style="color:var(--cyan)">{{ totalHighlights }}</div><div class="ds-label">高光片段</div></div>
+              <div class="ds-card" style="background:var(--primary-bg)"><div class="ds-num" style="color:var(--primary-light)">{{ averageConfidenceText(dramaViolations) }}</div><div class="ds-label">平均置信度</div></div>
+            </div>
+            <div v-if="dramaViolations.length" class="confidence-note">置信度表示系统对命中的把握程度，用于人工复核优先级参考，不等同于人工标注准确率。</div>
+            <div v-if="dramaDetail.error" style="padding:12px;background:var(--danger-bg);border-radius:8px;margin-bottom:16px;font-size:13px;color:var(--danger)">{{ dramaDetail.error }}</div>
+            <!-- Episode List -->
+            <div class="section-title" style="margin-bottom:12px">各集详情</div>
+            <div class="ep-list">
+              <div v-for="ep in dramaDetail.episodes" :key="ep.id" class="ep-row">
+                <div class="ep-row-header" @click="toggleEp(ep.id)">
+                  <span class="ep-num">第{{ ep.episode_num }}集</span>
+                  <span class="ep-filename">{{ ep.filename }}</span>
+                  <span v-if="ep.violations_count" class="ep-vio-count">{{ ep.violations_count }} 违规</span>
+                  <span class="badge btn-sm" :class="'badge-'+(ep.status==='censored'?'done':ep.status)">{{ ep.status==='censored'?'已审核':statusText(ep.status) }}</span>
+                  <span style="font-size:12px;color:var(--cyan)">{{ ep.highlights?.length||0 }} 高光</span>
+                </div>
+                <div v-if="expandedEps[ep.id]" class="ep-details">
+                  <div class="ep-section">
+                    <div class="ep-section-header">
+                      <span class="ep-section-title">高光片段</span>
+                      <span class="ep-section-meta">{{ ep.highlights?.length || 0 }} 条</span>
+                    </div>
+                    <div v-if="ep.highlights?.length" class="ep-highlights">
+                      <div v-for="(h,i) in ep.highlights" :key="i" class="ep-hl-item">
+                        <span class="ep-hl-time">{{ toMMSS(h.start_time||h.timestamp||'0') }}<span v-if="h.end_time"> - {{ toMMSS(h.end_time) }}</span></span>
+                        <span class="ep-hl-desc">{{ h.description }}</span>
+                      </div>
+                    </div>
+                    <div v-else class="ep-empty">暂无高光片段</div>
+                  </div>
+                  <div class="ep-section">
+                    <div class="ep-section-header">
+                      <span class="ep-section-title">违规命中</span>
+                      <span class="ep-section-meta">{{ episodeViolations(ep).length }} 条</span>
+                    </div>
+                    <div v-if="episodeViolationGroups(ep).length" class="ep-violations">
+                      <div v-for="group in episodeViolationGroups(ep)" :key="group.key" class="vio-group">
+                        <div class="vio-group-label">{{ group.label }} ({{ group.items.length }})</div>
+                        <div
+                          v-for="(v,i) in group.items"
+                          :key="`${group.key}-${i}-${v.timestamp}-${v.type}`"
+                          class="vio-item"
+                          :class="v.need_mosaic?'mosaic':'mark'"
+                        >
+                          <span class="vio-time">{{ formatSec(v.timestamp) }}</span>
+                          <span class="vio-type">
+                            <span class="vio-main">{{ violationSummary(v) }}</span>
+                            <span class="vio-meta-line">
+                              <span class="vio-confidence" :class="confidenceClass(v)">{{ confidenceText(v) }}</span>
+                              <span>{{ violationBasis(v) }}</span>
+                            </span>
+                            <span v-if="violationEvidence(v)" class="vio-evidence">{{ violationEvidence(v) }}</span>
+                          </span>
+                          <span v-if="showGlobalTimestamp(v)" class="ep-vio-inline">合集 {{ formatSec(v.global_timestamp) }}</span>
+                          <span class="vio-tag" :class="v.need_mosaic?'mosaic':'mark'">{{ v.need_mosaic ? '已打码' : '仅标记' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="ep-empty">这一集暂无违规命中</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
   <script>
-  const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+  const { createApp, ref, reactive, computed, onMounted, onUnmounted } = Vue;
+  const { ElMessage } = ElementPlus;
   createApp({
     setup() {
+      const tab = ref('single');
+      const DEFAULT_DRAMA_DISCLAIMER = '热门漫剧 影视效果 无任何不良引导 请勿模仿';
+      const VIDEO_FILE_RE = /\.(mp4|mov|avi|mkv|flv|wmv)$/i;
+      // --- Single task state ---
       const tasks = ref([]);
       const detail = ref(null);
       const uploading = ref(false);
       const uploadPct = ref(0);
+      const uploadBatchTotal = ref(0);
+      const uploadBatchDone = ref(0);
+      const uploadCurrentName = ref('');
+      // --- Drama state ---
+      const dramas = ref([]);
+      const dramaDetail = ref(null);
+      const dramaFiles = ref([]);
+      const dramaUploading = ref(false);
+      const dramaFileInput = ref(null);
+      const dramaForm = reactive({ title:'', speed_factor:1.2, max_duration:900, episode_start:1, disclaimer:DEFAULT_DRAMA_DISCLAIMER });
+      const durationPresets = Object.freeze([
+        { label: '10 分钟', value: 600 },
+        { label: '15 分钟 推荐', value: 900 },
+        { label: '20 分钟', value: 1200 },
+        { label: '30 分钟', value: 1800 },
+      ]);
+      const speedPresets = Object.freeze([
+        { label: '1.0x 原速', value: 1.0 },
+        { label: '1.2x 推荐', value: 1.2 },
+        { label: '1.5x 快节奏', value: 1.5 },
+        { label: '2.0x 极快', value: 2.0 },
+      ]);
+      const expandedEps = reactive({});
       let timer = null;
 
-      const fetchTasks = async () => {
-        try { const r = await fetch('/api/tasks?size=50'); const d = await r.json(); tasks.value = d.items || []; } catch(e) {}
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const formatDuration = (seconds) => {
+        const total = Math.max(0, Math.round(Number(seconds) || 0));
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const secs = total % 60;
+        if (hours) return `${hours} 小时 ${minutes} 分`;
+        if (minutes && !secs) return `${minutes} 分钟`;
+        if (minutes) return `${minutes} 分 ${secs} 秒`;
+        return `${secs} 秒`;
       };
-      const selectTask = async (row) => {
-        try { const r = await fetch(`/api/tasks/${row.id}`); detail.value = await r.json(); } catch(e) {}
+      const formatFileSize = (size) => {
+        const bytes = Number(size) || 0;
+        if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+        if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${bytes} B`;
       };
-      const download = (id) => window.open(`/api/tasks/${id}/download`);
-      const deleteTask = async (id) => {
-        try {
-          await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-          if (detail.value?.id === id) detail.value = null;
-          fetchTasks();
-        } catch(e) {}
+      const extractEpisodeNumber = (name) => {
+        const explicitEpisode = name.match(/第\s*(\d+)\s*集/i);
+        if (explicitEpisode) return Number(explicitEpisode[1]);
+        const nums = name.match(/\d+/g);
+        return nums ? Number(nums[nums.length - 1]) : Number.MAX_SAFE_INTEGER;
       };
-      const clearDone = async () => {
-        const done = tasks.value.filter(t => t.status === 'done' || t.status === 'failed');
-        for (const t of done) await fetch(`/api/tasks/${t.id}`, { method: 'DELETE' });
-        detail.value = null;
-        fetchTasks();
+      const extractEpisodeLabel = (name) => {
+        const episodeNo = extractEpisodeNumber(name);
+        if (Number.isFinite(episodeNo) && episodeNo !== Number.MAX_SAFE_INTEGER) {
+          return `识别集号 ${episodeNo}`;
+        }
+        return '未识别集号，按文件名排序';
       };
-      const uploadFile = (file) => {
-        if (!file) return;
-        uploading.value = true; uploadPct.value = 0;
-        const fd = new FormData(); fd.append('file', file);
-        const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => { if (e.lengthComputable) uploadPct.value = Math.round(e.loaded/e.total*100); };
-        xhr.onload = () => { uploading.value = false; fetchTasks(); };
-        xhr.onerror = () => { uploading.value = false; };
-        xhr.open('POST', '/api/tasks'); xhr.send(fd);
+      const sortDramaFiles = (files) => [...files].sort((a, b) => {
+        const episodeDelta = extractEpisodeNumber(a.name) - extractEpisodeNumber(b.name);
+        if (episodeDelta !== 0) return episodeDelta;
+        return a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' });
+      });
+      const guessDramaTitle = (files) => {
+        const names = files.map((file) => file.name.replace(/\.[^.]+$/, '').trim()).filter(Boolean);
+        if (!names.length) return '';
+        let prefix = names[0];
+        for (const name of names.slice(1)) {
+          let index = 0;
+          while (index < prefix.length && index < name.length && prefix[index] === name[index]) index += 1;
+          prefix = prefix.slice(0, index);
+          if (!prefix) break;
+        }
+        return prefix
+          .replace(/[\s._-]*第?\d+(?:集|话|期)?$/i, '')
+          .replace(/[\s._-]+$/, '')
+          .trim();
       };
-      const onFileSelect = (e) => uploadFile(e.target.files[0]);
-      const onDrop = (e) => uploadFile(e.dataTransfer.files[0]);
+      const syncDramaFiles = (inputFiles) => {
+        const rawFiles = Array.from(inputFiles || []);
+        const validFiles = rawFiles.filter((file) => VIDEO_FILE_RE.test(file.name));
+        const skippedCount = rawFiles.length - validFiles.length;
+        dramaFiles.value = sortDramaFiles(validFiles);
+        if (rawFiles.length > 0 && validFiles.length === 0) {
+          ElMessage.warning('没有检测到支持的视频文件，请重新选择');
+          return;
+        }
+        if (!dramaForm.title.trim()) {
+          const guessedTitle = guessDramaTitle(dramaFiles.value);
+          if (guessedTitle) dramaForm.title = guessedTitle;
+        }
+        if (skippedCount > 0) {
+          ElMessage.warning(`已忽略 ${skippedCount} 个非视频文件`);
+        }
+      };
+      const clearDramaFiles = () => {
+        dramaFiles.value = [];
+        if (dramaFileInput.value) dramaFileInput.value.value = '';
+      };
+      const setSpeedPreset = (value) => { dramaForm.speed_factor = value; };
+      const setDurationPreset = (value) => { dramaForm.max_duration = value; };
+      const maxDurationMinutes = computed({
+        get: () => Number(((Number(dramaForm.max_duration) || 0) / 60).toFixed(1)),
+        set: (value) => {
+          const minutes = clamp(Number(value) || 15, 1, 120);
+          dramaForm.max_duration = Math.round(minutes * 60);
+        },
+      });
+      const sortedDramaFiles = computed(() => dramaFiles.value);
+      const visibleDramaFiles = computed(() => sortedDramaFiles.value.slice(0, 8));
+      const dramaEpisodeEnd = computed(() => {
+        const start = Math.max(1, Math.floor(Number(dramaForm.episode_start) || 1));
+        return start + Math.max(sortedDramaFiles.value.length - 1, 0);
+      });
+      const totalDramaSizeText = computed(() => formatFileSize(sortedDramaFiles.value.reduce((sum, file) => sum + (file.size || 0), 0)));
+      const totalHighlights = computed(() => (dramaDetail.value?.episodes||[]).reduce((s,e)=>(s+(e.highlights?.length||0)),0));
+      const reviewedEpisodeCount = computed(() => (dramaDetail.value?.episodes || []).filter((ep) => ep.status === 'censored').length);
+      const trimmedEpisodeCount = computed(() => (dramaDetail.value?.episodes || []).filter((ep) => ep.status === 'trimmed_out').length);
+      const uploadOverallPct = computed(() => {
+        if (!uploading.value || !uploadBatchTotal.value) return uploadPct.value;
+        return Math.round(((uploadBatchDone.value + (uploadPct.value / 100)) / uploadBatchTotal.value) * 100);
+      });
 
-      const statusText = (s) => ({done:'已完成',processing:'处理中',failed:'失败',pending:'等待中'}[s]||s);
-      const formatTime = (t) => t ? new Date(t).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-      const typeMap = {
-        'FEMALE_BREAST_EXPOSED':'女性胸部暴露','FEMALE_GENITALIA_EXPOSED':'女性私密部位暴露',
-        'MALE_GENITALIA_EXPOSED':'男性私密部位暴露','BUTTOCKS_EXPOSED':'臀部暴露',
-        'ANUS_EXPOSED':'隐私部位暴露','BELLY_EXPOSED':'腹部暴露',
-        'FEMALE_BREAST_COVERED':'女性胸部(遮挡)','BUTTOCKS_COVERED':'臀部(遮挡)',
-        'FACE_FEMALE':'女性面部','FACE_MALE':'男性面部',
+      // --- Fetch ---
+      const fetchTasks = async () => { try { const r = await fetch('/api/tasks?size=50'); const d = await r.json(); tasks.value = d.items||[]; } catch(e){} };
+      const fetchDramas = async () => { try { const r = await fetch('/api/dramas?size=50'); const d = await r.json(); dramas.value = d.items||[]; } catch(e){} };
+      const fetchAll = () => { fetchTasks(); fetchDramas(); };
+
+      // --- Single task actions ---
+      const selectTask = async (row) => { try { const r = await fetch(`/api/tasks/${row.id}`); detail.value = await r.json(); } catch(e){} };
+      const download = (id) => window.open(`/api/tasks/${id}/download`);
+      const deleteTask = async (id) => { await fetch(`/api/tasks/${id}`,{method:'DELETE'}); if(detail.value?.id===id) detail.value=null; fetchTasks(); };
+      const clearDone = async () => { for(const t of tasks.value.filter(t=>t.status==='done'||t.status==='failed')) await fetch(`/api/tasks/${t.id}`,{method:'DELETE'}); detail.value=null; fetchTasks(); };
+      const uploadSingleFile = (file) => new Promise((resolve, reject) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) uploadPct.value = Math.round((e.loaded / e.total) * 100);
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText || '{}'));
+            } catch (_) {
+              resolve({});
+            }
+            return;
+          }
+          reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
+        };
+        xhr.onerror = () => reject(new Error('网络异常，上传失败'));
+        xhr.open('POST', '/api/tasks');
+        xhr.send(fd);
+      });
+      const submitSingleFiles = async (fileList) => {
+        const rawFiles = Array.from(fileList || []);
+        const validFiles = rawFiles.filter((file) => VIDEO_FILE_RE.test(file.name));
+        const skippedCount = rawFiles.length - validFiles.length;
+        if (!validFiles.length) {
+          ElMessage.warning('请先选择至少一个可处理的视频文件');
+          return;
+        }
+        if (skippedCount > 0) {
+          ElMessage.warning(`已忽略 ${skippedCount} 个非视频文件`);
+        }
+        uploading.value = true;
+        uploadBatchTotal.value = validFiles.length;
+        uploadBatchDone.value = 0;
+        uploadCurrentName.value = '';
+        uploadPct.value = 0;
+        const accepted = [];
+        const failed = [];
+        for (const file of validFiles) {
+          uploadCurrentName.value = file.name;
+          uploadPct.value = 0;
+          try {
+            accepted.push(await uploadSingleFile(file));
+          } catch (error) {
+            failed.push(`${file.name}：${error?.message || '提交失败'}`);
+          } finally {
+            uploadBatchDone.value += 1;
+          }
+        }
+        uploading.value = false;
+        uploadCurrentName.value = '';
+        uploadPct.value = 0;
+        fetchTasks();
+        if (accepted.length && !failed.length) {
+          ElMessage.success(`已提交 ${accepted.length} 个任务，系统会按算力自动排队`);
+        } else if (accepted.length) {
+          ElMessage.warning(`已提交 ${accepted.length} 个任务，${failed.length} 个失败`);
+        } else {
+          ElMessage.error(failed[0] || '提交失败，请稍后重试');
+        }
       };
-      const translateType = (t) => typeMap[t] || t;
-      const toMMSS = (val) => { const s=parseFloat(String(val).replace('s',''))||0; return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0'); };
+      const onFileSelect = (e) => {
+        submitSingleFiles(e.target.files);
+        e.target.value = '';
+      };
+      const onDrop = (e) => submitSingleFiles(e.dataTransfer.files);
+      // --- Drama actions ---
+      const selectDrama = async (d) => { try { const r = await fetch(`/api/dramas/${d.id}`); dramaDetail.value = await r.json(); } catch(e){} };
+      const downloadDrama = (id) => window.open(`/api/dramas/${id}/download`);
+      const deleteDrama = async (id) => { await fetch(`/api/dramas/${id}`,{method:'DELETE'}); if(dramaDetail.value?.id===id) dramaDetail.value=null; fetchDramas(); };
+      const onDramaFileSelect = (e) => { syncDramaFiles(e.target.files); };
+      const onDramaDrop = (e) => { syncDramaFiles(e.dataTransfer.files); };
+      const submitDrama = async () => {
+        if (!sortedDramaFiles.value.length) {
+          ElMessage.warning('请先选择分集视频');
+          return;
+        }
+        const cleanTitle = dramaForm.title.trim();
+        if (!cleanTitle) {
+          ElMessage.warning('请先填写剧名');
+          return;
+        }
+        dramaForm.episode_start = Math.max(1, Math.floor(Number(dramaForm.episode_start) || 1));
+        dramaForm.speed_factor = Number(clamp(Number(dramaForm.speed_factor) || 1.2, 0.5, 4.0).toFixed(1));
+        dramaForm.max_duration = Math.round(clamp(Number(dramaForm.max_duration) || 900, 60, 7200));
+        dramaUploading.value=true;
+        const fd=new FormData();
+        fd.append('title', cleanTitle);
+        fd.append('speed_factor', String(dramaForm.speed_factor));
+        fd.append('max_duration', String(dramaForm.max_duration));
+        fd.append('episode_start', String(dramaForm.episode_start));
+        fd.append('episode_end', String(dramaEpisodeEnd.value));
+        fd.append('disclaimer', dramaForm.disclaimer.trim() || DEFAULT_DRAMA_DISCLAIMER);
+        for(const f of sortedDramaFiles.value) fd.append('files',f);
+        try {
+          const resp = await fetch('/api/dramas',{method:'POST',body:fd});
+          if (!resp.ok) {
+            const errorText = (await resp.text()) || '提交失败';
+            throw new Error(errorText);
+          }
+          const result = await resp.json();
+          clearDramaFiles();
+          fetchDramas();
+          ElMessage.success(`已提交 ${result.episodes} 集，系统会按算力自动处理或排队`);
+        } catch(e) {
+          ElMessage.error(e?.message ? `提交失败：${e.message}` : '提交失败，请稍后重试');
+        } finally {
+          dramaUploading.value=false;
+        }
+      };
+      const toggleEp = (id) => { expandedEps[id] = !expandedEps[id]; };
+
+      // --- Helpers ---
+      const statusText = (s) => ({done:'已完成',processing:'处理中',failed:'失败',pending:'排队中',censored:'已审核',trimmed_out:'已裁剪'}[s]||s);
+      const stageText = (s) => ({
+        initializing:'初始化任务',
+        extracting_frames:'抽帧分析',
+        detecting_nudity:'裸露检测',
+        detecting_subtitles:'字幕检测',
+        vlm_detection:'VLM 复检',
+        applying_mosaic:'生成打码视频',
+        preprocessing:'逐集预处理',
+        concatenating:'正在拼接分集',
+        speeding_up:'正在加速视频',
+        trimming:'正在按上限裁剪',
+        censoring:'审核与打码中',
+        censoring_extracting_frames:'审核中：抽帧',
+        censoring_detecting_nudity:'审核中：裸露检测',
+        censoring_detecting_subtitles:'审核中：字幕检测',
+        censoring_vlm_detection:'审核中：VLM 复检',
+        censoring_applying_mosaic:'审核中：生成打码视频',
+        mapping_highlights:'映射分集高光',
+        splitting_episodes:'切分分集片段',
+        inserting_hooks:'插入尾帧钩子',
+        recombining:'重新合成合集',
+        adding_labels:'添加常驻标签',
+        done:'处理完成'
+      }[s]||s);
+      const formatTime = (t) => t ? new Date(t).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      const formatEtaTime = (t) => t ? new Date(t).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      const numericTime = (val) => parseFloat(String(val ?? '').replace('s','')) || 0;
+      const toMMSS = (val) => { const s=numericTime(val); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0'); };
       const formatSec = (val) => toMMSS(val);
+      const queueSummary = (item) => {
+        if (!item) return '';
+        if (item.status === 'processing') return '正在处理';
+        if (item.status === 'pending') {
+          const ahead = Number(item.waiting_count || 0);
+          if (Number(item.estimated_wait_seconds || 0) <= 10) return '排队中，即将开始';
+          if (ahead > 0) return `排队中，前方 ${ahead} 个任务`;
+          if (Number(item.queue_position || 0) > 0) return `排队中，当前排第 ${item.queue_position} 个`;
+          return '排队中，等待空闲算力';
+        }
+        if (item.status === 'done') return '处理完成，可下载结果';
+        if (item.status === 'failed') return '处理失败，请查看详情';
+        return statusText(item.status);
+      };
+      const etaText = (item) => {
+        if (!item) return '';
+        if (item.status === 'processing' && item.estimated_finish_at) {
+          const remain = item.estimated_remaining_seconds ? `，剩余约 ${formatDuration(item.estimated_remaining_seconds)}` : '';
+          return `预计 ${formatEtaTime(item.estimated_finish_at)} 完成${remain}`;
+        }
+        if (item.status === 'pending') {
+          if (item.estimated_start_at && Number(item.estimated_wait_seconds || 0) > 10) {
+            return `预计 ${formatEtaTime(item.estimated_start_at)} 开始`;
+          }
+          if (item.estimated_finish_at) {
+            return `预计 ${formatEtaTime(item.estimated_finish_at)} 完成`;
+          }
+          return '等待调度';
+        }
+        if (item.status === 'done' && item.actual_runtime_seconds) {
+          return `实际耗时 ${formatDuration(item.actual_runtime_seconds)}`;
+        }
+        if (item.status === 'failed' && item.actual_runtime_seconds) {
+          return `已运行 ${formatDuration(item.actual_runtime_seconds)}`;
+        }
+        return item.completed_at ? `结束于 ${formatEtaTime(item.completed_at)}` : '';
+      };
+      const taskStageSummary = (item) => {
+        if (!item) return '';
+        if (item.status === 'processing') {
+          if (item.stage) return stageText(item.stage);
+          return item.estimated_finish_at ? `预计 ${formatEtaTime(item.estimated_finish_at)} 完成` : '处理中';
+        }
+        if (item.status === 'pending') {
+          return item.estimated_finish_at ? `预计 ${formatEtaTime(item.estimated_finish_at)} 完成` : '等待调度';
+        }
+        return etaText(item);
+      };
+      const typeMap = {'FEMALE_BREAST_EXPOSED':'女性胸部暴露','FEMALE_GENITALIA_EXPOSED':'女性私密部位暴露','MALE_GENITALIA_EXPOSED':'男性私密部位暴露','BUTTOCKS_EXPOSED':'臀部暴露','ANUS_EXPOSED':'隐私部位暴露','BELLY_EXPOSED':'腹部暴露','FEMALE_BREAST_COVERED':'女性胸部(遮挡)','BUTTOCKS_COVERED':'臀部(遮挡)','FACE_FEMALE':'女性面部','FACE_MALE':'男性面部'};
+      const translateType = (t) => typeMap[t]||t;
+      const normalizeViolations = (items) => Array.isArray(items) ? [...items].sort((a,b)=>numericTime(a?.timestamp)-numericTime(b?.timestamp)) : [];
+      const groupViolationsBySource = (items) => {
+        const groups = { nudenet: [], vlm: [], ocr: [], other: [] };
+        for (const v of normalizeViolations(items)) {
+          if (v?.source === 'nudenet') groups.nudenet.push(v);
+          else if (v?.source === 'vlm') groups.vlm.push(v);
+          else if (v?.source === 'ocr' || v?.source === 'ocr_vlm') groups.ocr.push(v);
+          else groups.other.push(v);
+        }
+        return groups;
+      };
+      const episodeViolations = (ep) => normalizeViolations(ep?.violations);
+      const episodeViolationGroups = (ep) => {
+        const grouped = groupViolationsBySource(episodeViolations(ep));
+        return [
+          { key: 'nudenet', label: 'NudeNet 本地检测', items: grouped.nudenet },
+          { key: 'vlm', label: 'VLM 云端复检', items: grouped.vlm },
+          { key: 'ocr', label: '字幕文字检测', items: grouped.ocr },
+          { key: 'other', label: '其他检测', items: grouped.other },
+        ].filter(group => group.items.length);
+      };
+      const confidenceValue = (v) => {
+        const raw = Number(v?.confidence);
+        if (Number.isFinite(raw) && raw >= 0) {
+          return Math.min(1, raw > 1 ? raw / 100 : raw);
+        }
+        const severity = String(v?.severity || '').toLowerCase();
+        if (severity === 'high') return 0.92;
+        if (severity === 'medium') return 0.78;
+        if (severity === 'low') return 0.58;
+        return null;
+      };
+      const confidenceText = (v) => {
+        const value = confidenceValue(v);
+        return value == null ? '置信度待补充' : `置信度 ${Math.round(value * 100)}%`;
+      };
+      const confidenceClass = (v) => {
+        const value = confidenceValue(v);
+        if (value == null) return 'low';
+        if (value >= 0.85) return 'high';
+        if (value >= 0.7) return 'medium';
+        return 'low';
+      };
+      const violationBasis = (v) => {
+        const parts = [];
+        if (v?.review_basis) parts.push(v.review_basis);
+        if (v?.severity) parts.push(`等级 ${String(v.severity).toUpperCase()}`);
+        if (Number.isFinite(Number(v?.score))) parts.push(`模型分 ${Number(v.score).toFixed(2)}`);
+        return parts.join(' · ') || '待补充判定依据';
+      };
+      const violationEvidence = (v) => v?.evidence ? `证据：${v.evidence}` : '';
+      const violationSummary = (v) => {
+        const label = translateType(v?.type);
+        if (v?.description && label && v.description !== label) return `${label} | ${v.description}`;
+        return v?.description || label || '未分类违规';
+      };
+      const showGlobalTimestamp = (v) => Number.isFinite(Number(v?.global_timestamp)) && Math.abs(numericTime(v.global_timestamp) - numericTime(v.timestamp)) >= 0.1;
+      const averageConfidenceText = (items) => {
+        const list = (Array.isArray(items) ? items : [])
+          .map(confidenceValue)
+          .filter((value) => value != null);
+        if (!list.length) return '—';
+        const avg = list.reduce((sum, value) => sum + value, 0) / list.length;
+        return `${Math.round(avg * 100)}%`;
+      };
 
       const dedupedViolations = computed(() => {
-        if (!detail.value?.violations) return [];
-        const seen = new Set();
-        return detail.value.violations.filter(v => {
-          const k = (parseFloat(String(v.timestamp).replace('s',''))||0).toFixed(1)+'|'+v.type;
-          if (seen.has(k)) return false; seen.add(k); return true;
-        }).sort((a,b) => (parseFloat(String(a.timestamp).replace('s',''))||0) - (parseFloat(String(b.timestamp).replace('s',''))||0));
+        if(!detail.value?.violations) return [];
+        const seen=new Set();
+        return detail.value.violations.filter(v=>{const k=numericTime(v.timestamp).toFixed(1)+'|'+v.type; if(seen.has(k)) return false; seen.add(k); return true;})
+          .sort((a,b)=>numericTime(a.timestamp)-numericTime(b.timestamp));
       });
       const groupedViolations = computed(() => {
-        const g = { nudenet:[], vlm:[], ocr:[], other:[] };
-        for (const v of dedupedViolations.value) {
-          if (v.source === 'nudenet') g.nudenet.push(v);
-          else if (v.source === 'vlm') g.vlm.push(v);
-          else if (v.source === 'ocr' || v.source === 'ocr_vlm') g.ocr.push(v);
-          else g.other.push(v);
-        }
-        return g;
+        return groupViolationsBySource(dedupedViolations.value);
       });
+      const dramaViolations = computed(() => (dramaDetail.value?.episodes || []).flatMap((ep) => normalizeViolations(ep?.violations)));
 
-      onMounted(() => { fetchTasks(); timer = setInterval(fetchTasks, 3000); });
+      onMounted(() => { fetchAll(); timer=setInterval(fetchAll,3000); });
       onUnmounted(() => clearInterval(timer));
 
-      return { tasks, detail, uploading, uploadPct, dedupedViolations, groupedViolations,
-        selectTask, download, deleteTask, clearDone, onFileSelect, onDrop,
-        statusText, formatTime, translateType, toMMSS, formatSec };
+      return { tab, tasks, detail, uploading, uploadPct, uploadBatchTotal, uploadBatchDone, uploadCurrentName, uploadOverallPct, dramas, dramaDetail, dramaFiles, dramaUploading, dramaForm, dramaFileInput, durationPresets, speedPresets, maxDurationMinutes, sortedDramaFiles, visibleDramaFiles, dramaEpisodeEnd, totalDramaSizeText, reviewedEpisodeCount, trimmedEpisodeCount, expandedEps, totalHighlights,
+        dedupedViolations, groupedViolations, dramaViolations, selectTask, download, deleteTask, clearDone, onFileSelect, onDrop,
+        selectDrama, downloadDrama, deleteDrama, onDramaFileSelect, onDramaDrop, submitDrama, toggleEp, clearDramaFiles, setSpeedPreset, setDurationPreset,
+        statusText, stageText, formatTime, toMMSS, formatSec, formatDuration, formatFileSize, extractEpisodeLabel, translateType, queueSummary, etaText, taskStageSummary, episodeViolations, episodeViolationGroups, confidenceText, confidenceClass, violationBasis, violationEvidence, averageConfidenceText, violationSummary, showGlobalTimestamp, fetchAll };
     }
   }).mount('#app');
   </script>

@@ -7,6 +7,47 @@ from .. import config
 
 logger = logging.getLogger(__name__)
 
+CONFIRM_PROMPT_LOWER_BODY = """这是微短剧的一帧截图。AI 检测系统标记了下体或臀部区域可能存在露出。
+请判断画面中该区域是否需要打码。
+
+必须打码：
+- 生殖器、肛门、臀部明显裸露
+- 衣物遮挡不足，敏感区域轮廓或细节直接可见
+- 画面重点聚焦在下体或臀部并形成低俗展示
+
+不需要打码：
+- 正常裤装、裙装、短裤或动作造成的普通褶皱
+- 仅出现腿部、腰部或非敏感区域
+- 远景或模糊画面，无法明确看到敏感部位
+
+注意：只有下体或臀部暴露明确时才判定为 true；模糊情况判定为 false。
+仅返回 JSON：{"is_violation": true, "reason": "简短原因"} 或 {"is_violation": false, "reason": "简短原因"}"""
+
+CONFIRM_PROMPT_GENERAL = """这是微短剧的一帧截图。AI 检测系统标记了可能需要打码的人体敏感区域。
+请判断该区域是否真的需要打码。
+
+必须打码：
+- 敏感部位明确裸露
+- 衣物遮挡不足，敏感区域特征直接可见
+- 画面构图明显在突出展示人体敏感部位
+
+不需要打码：
+- 正常服装、正常站姿或动作导致的误判
+- 画面模糊、遮挡充分、无法明确识别敏感部位
+
+注意：模糊情况判定为 false。
+仅返回 JSON：{"is_violation": true, "reason": "简短原因"} 或 {"is_violation": false, "reason": "简短原因"}"""
+
+
+def _confirm_prompt_for_type(violation_type: str | None) -> str:
+    """Select a class-aware confirmation prompt for borderline detections."""
+    violation_type = str(violation_type or "").upper()
+    if "BREAST" in violation_type:
+        return CONFIRM_PROMPT
+    if any(keyword in violation_type for keyword in ("GENITALIA", "ANUS", "BUTTOCKS")):
+        return CONFIRM_PROMPT_LOWER_BODY
+    return CONFIRM_PROMPT_GENERAL
+
 CONFIRM_PROMPT = """这是微短剧的一帧截图。AI检测系统标记了胸部区域可能存在暴露。
 请判断画面中胸部区域是否需要打码。
 
@@ -50,8 +91,10 @@ AUDIT_PROMPT = """你是微短剧视频内容审核专家，依据平台审核�
 - 宁可漏判也不要误判，模糊情况一律判定为safe
 - severity=low 的内容不要报告，只报告 high 和 medium
 
-对于"低俗色情"类型，返回精确的 bbox [x, y, w, h]（百分比0-100），仅框选违规的身体部位，不要框选整个人物。
-bbox 宽高各不应超过 25（即画面的25%），超过说明框选范围太大。
+对于"低俗色情"和"血腥暴力"类型，返回精确的 bbox [x, y, w, h]（百分比0-100）。
+- 低俗色情：仅框选违规的身体部位，不要框选整个人物
+- 血腥暴力：优先框出血迹、伤口、血肉模糊区域或施暴核心区域，不要无必要框整个人物
+bbox 宽高各不应超过 35（即画面的35%），超过说明框选范围太大。
 
 仅返回JSON：
 {"violations": [{"type": "类型", "description": "描述", "severity": "high/medium", "region": "位置", "bbox": [x, y, w, h]}], "safe": true/false}
@@ -200,13 +243,13 @@ def _text_region_to_box(region: str, width: int, height: int) -> list[int]:
         return [width // 6, int(height * 0.85), width * 5 // 6, int(height * 0.98)]
 
 
-async def confirm_violation_async(image_path: str) -> dict:
+async def confirm_violation_async(image_path: str, violation_type: str | None = None) -> dict:
     """Lightweight VLM confirmation for a single borderline NudeNet detection.
     Returns {"is_violation": bool, "reason": str}.
     """
     b64 = _encode_image(image_path)
     messages = [{"role": "user", "content": [
-        {"type": "text", "text": CONFIRM_PROMPT},
+        {"type": "text", "text": _confirm_prompt_for_type(violation_type)},
         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
     ]}]
     try:
@@ -219,8 +262,7 @@ async def confirm_violation_async(image_path: str) -> dict:
         return {"is_violation": False, "reason": "parse_error"}
     except Exception as e:
         logger.error(f"VLM confirm failed: {e}")
-        # On error, default to keeping the mosaic (conservative)
-        return {"is_violation": True, "reason": f"error: {e}"}
+        return {"is_violation": None, "reason": f"error: {e}"}
 
 
 def detect_frame_vlm(image_path: str, frame_width: int = 1920,
