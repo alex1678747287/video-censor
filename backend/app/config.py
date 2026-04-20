@@ -133,7 +133,7 @@ DRAMA_DIR = os.getenv("DRAMA_DIR", "data/dramas")
 DRAMA_SPEED_DEFAULT = 1.2
 DRAMA_MAX_DURATION = 900  # 15 minutes
 DRAMA_EPISODE_TAIL_TRIM_SECONDS = max(
-    0.0, float(os.getenv("DRAMA_EPISODE_TAIL_TRIM_SECONDS", "1.5"))
+    0.0, float(os.getenv("DRAMA_EPISODE_TAIL_TRIM_SECONDS", "2.5"))
 )
 DRAMA_HOOK_DURATION = 3  # highlight hook clip seconds
 DRAMA_HOOK_PRE_ROLL_SECONDS = max(

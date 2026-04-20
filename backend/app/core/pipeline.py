@@ -399,15 +399,26 @@ def _resolve_vlm_visual_box(violation: dict, frame_width: int, frame_height: int
 
 
 def _normalize_confidence(value, fallback: float | None = None) -> float | None:
-    """Clamp confidence to 0-1 when present."""
+    """Clamp confidence to 0-1 when present.
+
+    Accept both fractional (0-1) and percentage-like (0-100) inputs.
+    Values slightly above 1.0 are treated as invalid confidence and clamped.
+    """
     if value is None:
         return fallback
     try:
         number = float(value)
     except (TypeError, ValueError):
         return fallback
-    if number > 1.0:
-        number /= 100.0
+
+    if 1.0 < number <= 100.0:
+        # Percentage-like confidence (e.g. 78 -> 0.78)
+        if number >= 2.0:
+            number /= 100.0
+        else:
+            # Fractional confidence should not exceed 1.0.
+            number = 1.0
+
     return round(max(0.0, min(1.0, number)), 3)
 
 
@@ -653,20 +664,20 @@ def _should_auto_mosaic_blood_violation(description: str | None,
         )
         return allow, metrics
 
+    has_evidence = metrics.get("has_evidence", False)
+    has_spot = metrics.get("has_spot_evidence", False)
+    strong = metrics.get("strong_evidence", False)
+
     if support_score is not None:
-        allow = (
-            has_cue or
-            metrics.get("has_evidence", False) or
-            metrics.get("has_spot_evidence", False)
-        )
+        # Temporal support alone is not enough for blood mosaic; require semantic cue + visual cue,
+        # or a strong visual combination to reduce red-object false positives.
+        allow = (has_cue and (has_evidence or has_spot)) or (has_evidence and has_spot and strong)
     elif severity == "high":
-        allow = has_cue and (
-            metrics.get("has_evidence", False) or
-            metrics.get("strong_evidence", False) or
-            metrics.get("has_spot_evidence", False)
-        )
+        # No temporal support: keep strict, require cue + spot-like evidence.
+        allow = has_cue and has_spot and (has_evidence or strong)
     else:
-        allow = has_cue and has_direct_box and metrics.get("has_spot_evidence", False)
+        # Medium/no-support must include both cue and local blood-color structure.
+        allow = has_cue and has_direct_box and has_spot and has_evidence
     return allow, metrics
 
 
@@ -1412,21 +1423,29 @@ def process_video(task_id: str, video_path: str,
         def _dedup_violations(violations):
             if not violations:
                 return violations
-            deduped = []
-            seen = set()
-            sorted_v = sorted(violations, key=lambda v: (v.get("timestamp", 0), -v.get("score", 0)))
-            for v in sorted_v:
+            deduped: list[dict] = []
+            window_seconds = 2.0
+
+            # Prefer higher-score (or confidence) entries first, then earlier timestamp.
+            def _rank(v: dict) -> tuple[float, float]:
+                score = v.get("score")
+                if score is None:
+                    score = v.get("confidence")
+                norm = _normalize_confidence(score, 0.0) or 0.0
+                return (norm, -float(v.get("timestamp", 0) or 0.0))
+
+            for v in sorted(violations, key=_rank, reverse=True):
                 key = (v.get("source"), v.get("type"))
-                ts = v.get("timestamp", 0)
-                dup = False
-                for sk, sts in seen:
-                    if sk == key and abs(sts - ts) < 2.0:
-                        dup = True
-                        break
-                if not dup:
-                    deduped.append(v)
-                    seen.add((key, ts))
-            return deduped
+                ts = float(v.get("timestamp", 0) or 0.0)
+                if any(
+                    (existing.get("source"), existing.get("type")) == key
+                    and abs(float(existing.get("timestamp", 0) or 0.0) - ts) < window_seconds
+                    for existing in deduped
+                ):
+                    continue
+                deduped.append(v)
+
+            return sorted(deduped, key=lambda item: float(item.get("timestamp", 0) or 0.0))
 
         all_violations = _dedup_violations(all_violations)
 
