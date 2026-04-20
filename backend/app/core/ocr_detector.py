@@ -25,6 +25,54 @@ CONTEXT_KEYWORDS = {
     "妈的": re.compile(r"(?<![我你他她它们的])妈的"),  # "妈的" not preceded by pronouns
 }
 
+VLM_RISK_CUE_KEYWORDS = (
+    "做爱", "上床", "开房", "约炮", "包养", "陪睡", "嫖", "强奸",
+    "乳沟", "奶子", "胸", "内衣", "裸体", "鸡巴", "阴道", "肛门",
+    "骚货", "贱人", "婊子", "操你", "他妈的", "去死", "弄死你", "杀了你", "打死你",
+)
+
+BENIGN_CONTEXT_PATTERNS = (
+    re.compile(r"(羊肉|破脂羊|公羊|母羊|羊羔|羊圈|羊奶|喂羊|养羊)"),
+    re.compile(r"(牛肉|猪肉|鸡鸭鱼|年菜|做菜|炖肉|馆里|饭馆|羊肉馆)"),
+)
+
+
+def _normalize_text(text: str) -> str:
+    """Normalize subtitle text for stable keyword matching."""
+    return re.sub(r"\s+", "", str(text or "")).lower()
+
+
+def _contains_vlm_risk_cue(text: str) -> bool:
+    """Check if text contains explicit lexical cues that justify VLM text blocking."""
+    normalized = _normalize_text(text)
+    return any(keyword in normalized for keyword in VLM_RISK_CUE_KEYWORDS) or bool(_INSTANT_PATTERN.search(normalized))
+
+
+def _has_benign_context(text: str) -> bool:
+    """Detect livestock/cooking style benign contexts that often fool VLM text review."""
+    normalized = _normalize_text(text)
+    return any(pattern.search(normalized) for pattern in BENIGN_CONTEXT_PATTERNS)
+
+
+def _should_keep_vlm_text_violation(text: str, severity: str) -> bool:
+    """Filter out VLM-only subtitle hits that lack textual evidence."""
+    normalized = _normalize_text(text)
+    if not normalized:
+        return False
+    if _has_benign_context(normalized) and not _contains_vlm_risk_cue(normalized):
+        logger.info(f"Suppress benign-context VLM text violation: {text}")
+        return False
+    if _contains_vlm_risk_cue(normalized):
+        return True
+    logger.info(f"Suppress cue-less VLM text violation severity={severity}: {text}")
+    return False
+
+
+def _extract_json_string_field(payload: str, field: str) -> str:
+    """Best-effort extraction of a JSON string field from malformed payload."""
+    match = re.search(rf'"{field}"\s*:\s*"(?P<value>.*?)"', payload, re.IGNORECASE | re.DOTALL)
+    return match.group("value") if match else ""
+
 
 # VLM text audit prompt: judge if subtitle text is violating (aligned with platform standards)
 TEXT_AUDIT_PROMPT = """你是微短剧字幕审核专家，依据平台审核标准判定字幕违规。判断以下字幕文字是否包含违规内容。
@@ -52,6 +100,74 @@ severity 等级：
 仅返回JSON格式：
 {{"violations": [{{"index": 0, "text": "原文", "reason": "违规原因", "severity": "high/medium"}}], "has_violation": true/false}}
 如果全部正常，返回 {{"violations": [], "has_violation": false}}"""
+
+TEXT_AUDIT_PROMPT += """
+补充规则：
+- 畜牧、烹饪、动物性别、餐馆经营等正常剧情描述不算违规，例如“羊肉”“公羊”“母羊”“年菜”等。
+- 如果字幕本身没有明确粗俗、性、暴力词汇，不要因为联想、谐音或剧情暗示臆测成违规。
+"""
+
+
+def _collect_vlm_violation_indices(violations: list[dict], subtitles_count: int) -> list[int]:
+    """Collect actionable subtitle indices from parsed VLM results."""
+    indices = []
+    seen = set()
+    for violation in violations or []:
+        idx = violation.get("index")
+        text = violation.get("text", "")
+        reason = violation.get("reason", "")
+        severity = str(violation.get("severity", "medium")).lower()
+        if isinstance(idx, int) and 0 <= idx < subtitles_count:
+            logger.info(f"VLM flagged text [{idx}] severity={severity}: {text} reason={reason}")
+            if severity in ("high", "medium"):
+                if idx not in seen and _should_keep_vlm_text_violation(text, severity):
+                    indices.append(idx)
+                    seen.add(idx)
+            else:
+                logger.info(f"VLM low-severity text [{idx}] skipped for mosaic: {text}")
+    return indices
+
+
+def _extract_vlm_violation_indices(raw: str, subtitles_count: int) -> list[int]:
+    """Parse VLM output even when the model returns malformed JSON."""
+    import json as json_mod
+
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+    payload = raw[start:end] if start >= 0 and end > start else raw
+
+    try:
+        result = json_mod.loads(payload)
+        if result.get("has_violation"):
+            return _collect_vlm_violation_indices(result.get("violations", []), subtitles_count)
+        return []
+    except json_mod.JSONDecodeError as exc:
+        logger.warning(f"VLM text audit returned malformed JSON, using regex fallback: {exc}")
+
+    matches = list(re.finditer(r'"index"\s*:\s*(\d+)', payload))
+    if not matches:
+        return []
+
+    indices = []
+    seen = set()
+    for i, match in enumerate(matches):
+        next_start = matches[i + 1].start() if i + 1 < len(matches) else len(payload)
+        chunk = payload[match.start():next_start]
+        severity_match = re.search(r'"severity"\s*:\s*"(high|medium|low)"', chunk, re.IGNORECASE)
+        severity = severity_match.group(1).lower() if severity_match else "medium"
+        idx = int(match.group(1))
+        text = _extract_json_string_field(chunk, "text")
+        if (
+            0 <= idx < subtitles_count and
+            severity in ("high", "medium") and
+            idx not in seen and
+            _should_keep_vlm_text_violation(text, severity)
+        ):
+            indices.append(idx)
+            seen.add(idx)
+        elif 0 <= idx < subtitles_count and severity == "low":
+            logger.info(f"VLM low-severity text [{idx}] skipped by fallback parser")
+    return indices
 
 
 def get_ocr_engine():
@@ -150,7 +266,6 @@ def check_vlm_violations_sync(subtitles: list[dict], timestamps: list[float]) ->
     messages = [{"role": "user", "content": prompt}]
 
     try:
-        import json as json_mod
         import httpx
         from .. import config
         # Direct API call to avoid _call_vlm format issues with text-only prompts
@@ -169,6 +284,7 @@ def check_vlm_violations_sync(subtitles: list[dict], timestamps: list[float]) ->
                 f"{config.VOLCANO_BASE_URL}/chat/completions",
                 headers=headers, json=payload,
             )
+            resp.raise_for_status()
             data = resp.json()
         logger.info(f"VLM text audit response keys: {list(data.keys())}")
         raw = data.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -176,25 +292,7 @@ def check_vlm_violations_sync(subtitles: list[dict], timestamps: list[float]) ->
             logger.warning(f"VLM text audit empty response: {str(data)[:200]}")
             return []
         logger.info(f"VLM text audit raw: {raw[:300]}")
-        start = raw.find("{")
-        end = raw.rfind("}") + 1
-        if start >= 0 and end > start:
-            result = json_mod.loads(raw[start:end])
-            if result.get("has_violation"):
-                indices = []
-                for v in result.get("violations", []):
-                    idx = v.get("index")
-                    text = v.get("text", "")
-                    reason = v.get("reason", "")
-                    severity = v.get("severity", "medium")
-                    if isinstance(idx, int) and 0 <= idx < len(subtitles):
-                        logger.info(f"VLM flagged text [{idx}] severity={severity}: {text} reason={reason}")
-                        if severity in ("high", "medium"):
-                            indices.append(idx)
-                        else:
-                            # low severity: log only, no mosaic
-                            logger.info(f"VLM low-severity text [{idx}] skipped for mosaic: {text}")
-                return indices
+        return _extract_vlm_violation_indices(raw, len(subtitles))
     except Exception as e:
         import traceback
         logger.warning(f"VLM text audit failed: {e}\n{traceback.format_exc()}")

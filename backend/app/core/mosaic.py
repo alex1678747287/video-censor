@@ -4,6 +4,7 @@ import subprocess
 import shutil
 import tempfile
 import os
+import threading
 import cv2
 import numpy as np
 from pathlib import Path
@@ -174,16 +175,29 @@ def apply_mosaic(input_video: str, output_video: str,
         "-map", "0:v", "-map", "1:a?",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-preset", "ultrafast", "-crf", "23",
+        "-r", str(v_fps),
         "-c:a", "copy",
         "-movflags", "+faststart",
         output_video,
     ]
 
+    proc = None
+    stderr_chunks = []
     try:
         proc = subprocess.Popen(
             cmd, stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
+
+        # Drain stderr in a separate thread to prevent pipe deadlock
+        def _drain_stderr():
+            try:
+                for line in proc.stderr:
+                    stderr_chunks.append(line)
+            except Exception:
+                pass
+        stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+        stderr_thread.start()
 
         frame_idx = 0
         mosaic_applied = 0
@@ -196,23 +210,26 @@ def apply_mosaic(input_video: str, output_video: str,
                 for region in mosaic_map[frame_idx]:
                     x1, y1, x2, y2, blk, det_type = region
                     if det_type == "text":
-                        # Solid color cover for text: completely hides subtitle
                         _cover_text_region(frame, x1, y1, x2, y2)
                     else:
-                        # Pixelated mosaic for body/vlm regions
                         _blur_region(frame, x1, y1, x2, y2, block_size=blk)
                 mosaic_applied += 1
 
             proc.stdin.write(frame.tobytes())
             frame_idx += 1
 
-        cap.release()
         proc.stdin.close()
-        proc.wait(timeout=600)
+        try:
+            proc.wait(timeout=600)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            raise RuntimeError("FFmpeg encoding timed out")
 
         if proc.returncode != 0:
-            stderr = proc.stderr.read().decode(errors="ignore")
-            logger.error(f"FFmpeg encode failed: {stderr[:500]}")
+            stderr_thread.join(timeout=5)
+            stderr_text = b"".join(stderr_chunks).decode(errors="ignore")
+            logger.error(f"FFmpeg encode failed: {stderr_text[:500]}")
             shutil.copy2(input_video, output_video)
             return False
 
@@ -224,3 +241,8 @@ def apply_mosaic(input_video: str, output_video: str,
         logger.error(f"Mosaic application failed: {e}")
         shutil.copy2(input_video, output_video)
         return False
+    finally:
+        cap.release()
+        if proc and proc.poll() is None:
+            proc.kill()
+            proc.wait()
